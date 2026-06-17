@@ -13,8 +13,6 @@ import { Monitor, Smartphone, ScanLine, Bug, Laptop } from 'lucide-react';
 import { SignOffPrompt } from '@/components/review/SignOffPrompt';
 import { useSessionLoader } from '@/hooks/useSessionLoader';
 import { useCommentsSync } from '@/hooks/useComments';
-import './App.css';
-import './index.css';
 
 type View = AppHeaderView;
 
@@ -78,7 +76,11 @@ export default function PreviewPage() {
   );
 
   const handleLogoClick = useCallback(() => {
-    if (view === 'customer' || view === 'staff') {
+    if (view === 'customer') {
+      exitPreviewToHome();
+      return;
+    }
+    if (view === 'staff') {
       exitPreviewToHome();
       return;
     }
@@ -100,7 +102,11 @@ export default function PreviewPage() {
 
   if (isLoading) {
     return (
-      <div className={`flex flex-col items-center justify-center bg-neutral-50 px-4 ${embedded ? 'h-full min-h-0' : 'min-h-screen'}`}>
+      <div
+        className={`flex flex-col items-center justify-center bg-neutral-50 px-4 ${
+          embedded ? 'h-full min-h-0' : 'min-h-screen'
+        }`}
+      >
         <p className="text-sm text-neutral-600">Loading menu journey…</p>
       </div>
     );
@@ -108,7 +114,11 @@ export default function PreviewPage() {
 
   if (isError) {
     return (
-      <div className={`flex flex-col items-center justify-center bg-neutral-50 px-4 ${embedded ? 'h-full min-h-0' : 'min-h-screen'}`}>
+      <div
+        className={`flex flex-col items-center justify-center bg-neutral-50 px-4 ${
+          embedded ? 'h-full min-h-0' : 'min-h-screen'
+        }`}
+      >
         <p className="max-w-md text-center text-sm text-red-700">{errorMessage}</p>
       </div>
     );
@@ -132,7 +142,11 @@ export default function PreviewPage() {
       <div className={`flex flex-col bg-neutral-50 ${embedded ? 'h-full min-h-0' : 'min-h-screen'}`}>
         {!embedded ? <ToolNav currentTool="reviewer" /> : null}
         <AppHeader hasMenu={false} onLogoClick={goHome} />
-        <main className={`flex flex-1 flex-col items-center px-4 py-12 sm:py-16 ${embedded ? 'min-h-0 overflow-y-auto' : ''}`}>
+        <main
+          className={`flex flex-1 flex-col items-center px-4 py-12 sm:py-16 ${
+            embedded ? 'min-h-0 overflow-y-auto' : ''
+          }`}
+        >
           <MenuUpload />
           <button
             type="button"
@@ -153,8 +167,12 @@ export default function PreviewPage() {
           <div className="mx-auto max-w-4xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
             <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm sm:p-8 md:p-10">
               <div className="mb-8 sm:mb-10">
-                <h1 className="text-xl font-semibold tracking-tight text-neutral-900 sm:text-2xl md:text-3xl">{menu.name}</h1>
-                {menu.description ? <p className="mt-2 text-sm text-neutral-500 sm:text-base">{menu.description}</p> : null}
+                <h1 className="text-xl font-semibold tracking-tight text-neutral-900 sm:text-2xl md:text-3xl">
+                  {menu.name}
+                </h1>
+                {menu.description ? (
+                  <p className="mt-2 text-sm text-neutral-500 sm:text-base">{menu.description}</p>
+                ) : null}
                 <div className="mt-5 flex gap-2.5 rounded-xl border border-blue-100 bg-blue-50/80 px-4 py-3 text-xs leading-relaxed text-neutral-700 sm:text-sm">
                   <Laptop className="mt-0.5 h-4 w-4 shrink-0 text-flipdish sm:h-5 sm:w-5" aria-hidden />
                   <p>
@@ -162,41 +180,68 @@ export default function PreviewPage() {
                   </p>
                 </div>
               </div>
-              <div className={`grid grid-cols-1 gap-4 ${showCustomerJourney && showStaffJourney ? 'sm:grid-cols-2' : 'sm:max-w-md sm:mx-auto'}`}>
+
+              <div
+                className={`grid grid-cols-1 gap-4 ${
+                  showCustomerJourney && showStaffJourney ? 'sm:grid-cols-2' : 'sm:max-w-md sm:mx-auto'
+                }`}
+              >
                 {showCustomerJourney ? (
                   <button
                     type="button"
-                    onClick={() => { setDemoAutoplayFor('customer'); setView('customer'); }}
+                    onClick={() => {
+                      setDemoAutoplayFor('customer');
+                      setView('customer');
+                    }}
                     className="group flex flex-col items-center gap-3 rounded-xl border border-neutral-200 bg-white p-5 text-left transition-colors hover:border-flipdish/30 hover:shadow-sm sm:p-6"
                   >
-                    <div className="flex h-14 items-center justify-center gap-2.5 rounded-2xl bg-flipdish-muted px-4 text-flipdish transition-transform group-hover:scale-105" aria-hidden>
+                    <div
+                      className="flex h-14 items-center justify-center gap-2.5 rounded-2xl bg-flipdish-muted px-4 text-flipdish transition-transform group-hover:scale-105"
+                      aria-hidden
+                    >
                       <Monitor size={24} strokeWidth={1.75} className="shrink-0" />
                       <span className="h-7 w-px shrink-0 bg-flipdish/35" />
                       <Smartphone size={22} strokeWidth={1.75} className="shrink-0" />
                     </div>
                     <div className="text-center">
                       <p className="font-semibold text-neutral-900">Review your Web/App Menu Flow</p>
-                      <p className="mt-1 text-xs text-neutral-500">See if your menu is set up correctly for your new website and mobile apps</p>
+                      <p className="mt-1 text-xs text-neutral-500">
+                        See if your menu is set up correctly for your new website and mobile apps
+                      </p>
                     </div>
                   </button>
                 ) : null}
                 {showStaffJourney ? (
                   <button
                     type="button"
-                    onClick={() => { setDemoAutoplayFor('staff'); setView('staff'); }}
+                    onClick={() => {
+                      setDemoAutoplayFor('staff');
+                      setView('staff');
+                    }}
                     className="group flex flex-col items-center gap-3 rounded-xl border border-neutral-200 bg-white p-5 text-left transition-colors hover:border-flipdish/30 hover:shadow-sm sm:p-6"
                   >
-                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-neutral-100 to-neutral-200/80 text-neutral-800 shadow-inner ring-1 ring-neutral-200/90 transition-transform group-hover:scale-105" aria-hidden>
+                    <div
+                      className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-neutral-100 to-neutral-200/80 text-neutral-800 shadow-inner ring-1 ring-neutral-200/90 transition-transform group-hover:scale-105"
+                      aria-hidden
+                    >
                       <ScanLine size={28} strokeWidth={1.5} />
                     </div>
                     <div className="text-center">
                       <p className="font-semibold text-neutral-900">Review your POS Menu Flow</p>
-                      <p className="mt-1 text-xs text-neutral-500">See how you or your staff will be using your Flipdish POS menu</p>
+                      <p className="mt-1 text-xs text-neutral-500">
+                        See how you or your staff will be using your Flipdish POS menu
+                      </p>
                     </div>
                   </button>
                 ) : null}
               </div>
+
+              <p className="mt-6 rounded-xl border border-amber-100 bg-amber-50/80 px-4 py-3 text-center text-xs leading-relaxed text-neutral-800 sm:text-left sm:text-sm">
+                If anything looks off, open <span className="font-semibold text-amber-950">Check Menu Structure</span>{' '}
+                in the main tool and leave comments on the specific items that need changes.
+              </p>
             </div>
+
             {menu.metadata.warnings.length > 0 && (
               <div className="mt-6 rounded-xl border border-amber-200 bg-amber-50/80 p-6">
                 <div className="mb-3 flex items-center gap-2 font-semibold text-amber-900">
@@ -216,9 +261,25 @@ export default function PreviewPage() {
           </div>
         );
       case 'customer':
-        return <CustomerPreview embedded={embedded} onBack={exitPreviewToHome} autoStartDemo={demoAutoplayFor === 'customer'} onAutoStartDemoConsumed={consumeDemoAutoplay} hideBack={embedded} />;
+        return (
+          <CustomerPreview
+            embedded={embedded}
+            onBack={exitPreviewToHome}
+            autoStartDemo={demoAutoplayFor === 'customer'}
+            onAutoStartDemoConsumed={consumeDemoAutoplay}
+            hideBack={embedded}
+          />
+        );
       case 'staff':
-        return <StaffPreview embedded={embedded} onBack={exitPreviewToHome} autoStartDemo={demoAutoplayFor === 'staff'} onAutoStartDemoConsumed={consumeDemoAutoplay} hideBack={embedded} />;
+        return (
+          <StaffPreview
+            embedded={embedded}
+            onBack={exitPreviewToHome}
+            autoStartDemo={demoAutoplayFor === 'staff'}
+            onAutoStartDemoConsumed={consumeDemoAutoplay}
+            hideBack={embedded}
+          />
+        );
       case 'compare':
         return <ComparePreview />;
       default:
@@ -227,17 +288,71 @@ export default function PreviewPage() {
   };
 
   return (
-    <div className={`flex flex-col bg-neutral-50 ${embedded ? 'min-h-full overflow-visible' : view === 'staff' || view === 'compare' ? 'h-svh min-h-0 overflow-hidden' : 'min-h-screen'}`}>
+    <div
+      className={`flex flex-col bg-neutral-50 ${
+        embedded
+          ? 'min-h-full overflow-visible'
+          : view === 'staff' || view === 'compare'
+            ? 'h-svh min-h-0 overflow-hidden'
+            : 'min-h-screen'
+      }`}
+    >
       {!embedded ? <ToolNav currentTool="reviewer" /> : null}
       {!embedded ? (
-        <AppHeader hasMenu view={view} onNavigate={handleHeaderNavigate} onLogoClick={handleLogoClick} reviewProductScopes={reviewProductScopes} />
+        <AppHeader
+          hasMenu
+          view={view}
+          onNavigate={handleHeaderNavigate}
+          onLogoClick={handleLogoClick}
+          reviewProductScopes={reviewProductScopes}
+        />
       ) : null}
+
       {embedded && menu && (view === 'customer' || view === 'staff') ? (
         <div className="mx-auto w-full max-w-6xl px-2 pt-2 sm:px-4">
-          <SignOffPrompt />
+          <div className="flex flex-col gap-2">
+            {showCustomerJourney && showStaffJourney ? (
+              <div className="flex w-full max-w-md rounded-2xl border border-neutral-200 bg-white p-1 shadow-sm">
+                <button
+                  type="button"
+                  onClick={() => setView('customer')}
+                  className={`flex-1 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all ${
+                    view === 'customer'
+                      ? 'bg-neutral-900 text-white shadow-sm'
+                      : 'text-neutral-600 hover:bg-neutral-50'
+                  }`}
+                >
+                  Web / App flow
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setView('staff')}
+                  className={`flex-1 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all ${
+                    view === 'staff'
+                      ? 'bg-neutral-900 text-white shadow-sm'
+                      : 'text-neutral-600 hover:bg-neutral-50'
+                  }`}
+                >
+                  POS flow
+                </button>
+              </div>
+            ) : null}
+
+            <SignOffPrompt />
+          </div>
         </div>
       ) : null}
-      <main className={embedded ? 'flex flex-1 flex-col overflow-visible px-2 pb-4 sm:px-0' : view === 'staff' || view === 'compare' ? 'flex min-h-0 flex-1 flex-col overflow-hidden' : view === 'customer' ? 'flex min-h-0 flex-1 flex-col items-stretch px-2 pb-3 pt-2 sm:px-4 md:items-center md:pb-4' : 'flex-1 px-2 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-0 sm:pb-8'}>
+      <main
+        className={
+          embedded
+            ? 'flex flex-1 flex-col overflow-visible px-2 pb-4 sm:px-0'
+            : view === 'staff' || view === 'compare'
+              ? 'flex min-h-0 flex-1 flex-col overflow-hidden'
+              : view === 'customer'
+                ? 'flex min-h-0 flex-1 flex-col items-stretch px-2 pb-3 pt-2 sm:px-4 md:items-center md:pb-4'
+                : 'flex-1 px-2 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-0 sm:pb-8'
+        }
+      >
         {renderView()}
       </main>
     </div>

@@ -48,18 +48,15 @@ export default function Home() {
       <Typography variant="body2" className="muted">
         Signed in as {session?.user?.email}
       </Typography>
-      <div style={{ display: 'flex', gap: '1rem', marginTop: '2rem', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
         <Button fdKey="go-optimizer" type="button" variant="primary" tone="brand" onClick={() => router.push('/optimizer')}>
           Menu Optimizer
         </Button>
-        <Button fdKey="go-preview" type="button" variant="primary" tone="brand" onClick={() => router.push('/preview')}>
+        <Button fdKey="go-preview" type="button" variant="secondary" tone="neutral" onClick={() => router.push('/preview')}>
           Menu Preview
         </Button>
       </div>
-      <Typography variant="body2" className="muted" style={{ marginTop: '1rem' }}>
-        Menu Optimizer: AI-powered menu analysis · Menu Preview: side-by-side comparison & reviewer
-      </Typography>
-      <Button fdKey="signout" type="button" variant="tertiary" tone="neutral" onClick={() => signOut({ callbackUrl: '/auth/signin' })} style={{ marginTop: '2rem' }}>
+      <Button fdKey="signout" type="button" variant="tertiary" tone="neutral" onClick={() => signOut({ callbackUrl: '/auth/signin' })}>
         Sign out
       </Button>
     </main>

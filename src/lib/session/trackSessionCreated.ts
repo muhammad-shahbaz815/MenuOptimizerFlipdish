@@ -1,4 +1,4 @@
-import { supabase, isSupabaseConfigured } from '../supabaseClient';
+import { supabase, isSupabaseConfigured } from '@/lib/supabase-client';
 
 // Appends a row to session_events whenever a preview link is generated.
 // This table is never cleaned up so the all-time count survives session deletion.

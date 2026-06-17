@@ -2,21 +2,12 @@ import { slimMenu } from '@/lib/prompts/slim-menu';
 import { buildAnalyzePrompt } from '@/lib/prompts/analyze-prompt';
 import { buildReviewPrompt } from '@/lib/prompts/review-prompt';
 import { buildBasicAnalysisPrompt } from '@/lib/prompts/basic-analysis-prompt';
-import { MODEL, pickModelForRun } from '@/lib/anthropic-config';
+import { pickModelForRun } from '@/lib/anthropic-config';
 
 export const runtime = 'edge';
 
-// Inspect-only endpoint. Returns the exact analyze prompt /api/analyze would
-// send for the supplied inputs — without calling Anthropic. Used by the
-// "View prompts" modal so users can see (and copy) the wording with their
-// current menu, location, and reports already substituted in.
-
 export async function POST(req: Request) {
-  if (req.method !== 'POST') {
-    return json({ error: 'Method not allowed. POST { menu, location, supportingReports?, mode? }' }, 405);
-  }
-
-  let body;
+  let body: Record<string, unknown>;
   try { body = await req.json(); }
   catch { return json({ error: 'Request body must be JSON' }, 400); }
 
@@ -28,14 +19,13 @@ export async function POST(req: Request) {
   const mode = String(body?.mode || '').toLowerCase();
   const useBasicAnalysis = mode === 'basic';
 
-  let analyzePrompt = null;
-  let reviewPrompt = null;
-  let slimStats = null;
+  let analyzePrompt: string | null = null;
+  let reviewPrompt: string | null = null;
+  let slimStats: { original_chars: number; slimmed_chars: number; reduction_pct: number } | null = null;
   let slimmedJson = '[upload a menu JSON to see this prompt populated]';
 
   if (menu) {
     const slim = slimMenu(menu);
-    // Pretty-print to match what /api/analyze actually sends to Claude.
     slimmedJson = JSON.stringify(slim, null, 2);
     const original = JSON.stringify(menu);
     slimStats = {
@@ -59,8 +49,6 @@ export async function POST(req: Request) {
     });
   }
 
-  // Reflect the thinking + web-search settings so the modal stats can show
-  // them. max_tokens here mirrors the analyze endpoint's actual logic.
   const useExtendedThinking = body?.useExtendedThinking !== false;
   const webSearchOn = process.env.ENABLE_WEB_SEARCH === 'true';
   const maxTokens = useExtendedThinking
@@ -68,9 +56,6 @@ export async function POST(req: Request) {
     : (webSearchOn ? 24000 : 32000);
 
   const useSonnet = body?.useSonnet === true;
-  // Mirror the analyze/review auto-promotion logic so View Prompts shows
-  // the exact model that would actually fire (including the 1M-context
-  // long-context switch when the slimmed menu is large).
   const selection = pickModelForRun({
     menuChars: slimmedJson?.length || 0,
     useSonnet,
@@ -92,7 +77,7 @@ export async function POST(req: Request) {
   });
 }
 
-function json(obj, status = 200) {
+function json(obj: unknown, status = 200) {
   return new Response(JSON.stringify(obj, null, 2), {
     status,
     headers: {
