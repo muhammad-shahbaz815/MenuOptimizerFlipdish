@@ -1,0 +1,38 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "application-name",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2025-03-01",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "application-name-db",
+      "database_id": "3c8aafec-3743-4d46-bd45-9786aa66876d" //REPLACE_WITH_YOUR_PRODUCTION_D1_DATABASE_ID
+    }
+  ],
+  // Custom domain (optional): pick ONE hostname under a Flipdish-managed zone.
+  // Available zones: *.flipdish.com (production) or *.flipdishlabs.com (labs/staging).
+  // Uncomment a single route entry and set NEXTAUTH_URL + Google OAuth to the same origin.
+  // "routes": [
+  //   {
+  //     "pattern": "application-name.flipdish.com",
+  //     "custom_domain": true
+  //   }
+  //   // Or use the labs zone instead:
+  //   // {
+  //   //   "pattern": "application-name.flipdishlabs.com",
+  //   //   "custom_domain": true
+  //   // }
+  // ],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "services": [
+    {
+      "binding": "WORKER_SELF_REFERENCE",
+      "service": "application-name"
+    }
+  ]
+}

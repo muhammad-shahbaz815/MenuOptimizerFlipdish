@@ -1,0 +1,62 @@
+{
+  "name": "menu-optimizer-flipdish",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "cursor:init": ".husky/cursor-rules-init.sh",
+    "dev": "next dev",
+    "build": "npm run build:next",
+    "build:next": "next build",
+    "preview": "opennextjs-cloudflare preview --config wrangler.jsonc",
+    "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy --config wrangler.production.deploy.jsonc",
+    "db:schema:local": "node scripts/run-with-env.js npx wrangler d1 execute menu-optimizer-db --file=src/lib/db/schema.sql --config wrangler.jsonc",
+    "db:create:prod": "node scripts/run-with-env.js npx wrangler d1 create menu-optimizer-db",
+    "db:schema:prod": "node scripts/run-with-env.js npx wrangler d1 execute menu-optimizer-db --remote --file=src/lib/db/schema.sql --config wrangler.production.jsonc --yes",
+    "db:migrate:local": "node scripts/run-with-env.js node scripts/db-migrate.js local",
+    "db:migrate:prod": "node scripts/run-with-env.js node scripts/db-migrate.js prod",
+    "worker-secrets:prod": "node scripts/run-with-env.js node scripts/set-worker-secrets.js && node scripts/run-with-env.js node scripts/inject-worker-vars.js",
+    "start": "next start",
+    "lint:ci": "biome ci .",
+    "lint": "biome check --write --unsafe .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "prepare": "husky && npm run cursor:init"
+  },
+  "dependencies": {
+    "@emailjs/browser": "^4.4.1",
+    "@emotion/cache": "11.14.0",
+    "@emotion/react": "11.14.0",
+    "@emotion/styled": "11.14.1",
+    "@flipdish/portal-library": "8.5.7",
+    "@mui/material": "6.5.0",
+    "@opennextjs/cloudflare": "^1.19.7",
+    "@supabase/supabase-js": "^2.45.0",
+    "clsx": "^2.1.1",
+    "framer-motion": "^12.38.0",
+    "lucide-react": "^1.7.0",
+    "next": "16.2.6",
+    "next-auth": "^5.0.0-beta.30",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "tailwind-merge": "^3.5.0",
+    "zustand": "^5.0.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260507.1",
+    "@tailwindcss/postcss": "^4.2.2",
+    "@types/node": "^24",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@biomejs/biome": "2.4.6",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^4.2.2",
+    "typescript": "^5",
+    "vitest": "^2.1.9",
+    "wrangler": "4.88.0",
+    "husky": "9.1.7"
+  }
+}

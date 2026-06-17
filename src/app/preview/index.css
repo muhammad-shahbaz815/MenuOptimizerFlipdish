@@ -1,0 +1,48 @@
+@import "tailwindcss";
+
+@theme {
+  --color-flipdish: #0772ce;
+  --color-flipdish-hover: #0661b0;
+  --color-flipdish-muted: #e8f4fc;
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+}
+
+@keyframes ringFlash {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(7, 114, 206, 0.0), 0 0 0 0 rgba(7, 114, 206, 0.0); }
+  50%       { box-shadow: 0 0 0 4px rgba(7, 114, 206, 0.85), 0 0 0 8px rgba(7, 114, 206, 0.35); }
+}
+
+@keyframes ringFlashFast {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.0), 0 0 0 0 rgba(220, 38, 38, 0.0); }
+  50%       { box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.95), 0 0 0 8px rgba(220, 38, 38, 0.45); }
+}
+
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  background-color: #ffffff;
+  color: #171717;
+}
+
+/**
+ * Menu Preview embeds this app in an iframe. In embed mode the parent page owns
+ * vertical scrolling, so the app must grow to content height instead of trapping
+ * scroll inside nested preview panes.
+ */
+html.mjr-embed,
+html.mjr-embed body {
+  min-height: 100%;
+  margin: 0;
+  overflow: visible;
+}
+
+html.mjr-embed #root {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}

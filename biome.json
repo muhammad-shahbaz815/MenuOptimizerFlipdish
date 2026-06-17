@@ -1,0 +1,82 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.4.6/schema.json",
+  "vcs": {
+    "enabled": false,
+    "clientKind": "git",
+    "useIgnoreFile": true
+  },
+  "files": {
+    "ignoreUnknown": false,
+    "includes": [
+      "**",
+      "!**/*.d.ts",
+      "!**/*.md",
+      "!**/*.yml",
+      "!**/node_modules",
+      "!**/.next",
+      "!**/.wrangler",
+      "!**/.open-next",
+      "!**/.env.example",
+      "!**/pnpm-lock.yaml",
+      "!**/localization",
+      "!**/.sst",
+      "!**/.build",
+      "!**/dist",
+      "!**/aws-accounts.json",
+      "!utils/replacement.js",
+      "!**/*.cjs",
+      "!**/.history",
+      "!**/reports"
+    ]
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 150
+  },
+  "assist": { "actions": { "source": { "organizeImports": "on" } } },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": true,
+      "correctness": {
+        "noUnusedVariables": "error"
+      },
+      "a11y": {
+        "useSemanticElements": "off"
+      },
+      "suspicious": {
+        "noArrayIndexKey": "off"
+      },
+      "complexity": {
+        "noImportantStyles": "off"
+      },
+      "style": {
+        "noDescendingSpecificity": "off",
+        "noRestrictedImports": {
+          "level": "error",
+          "options": {
+            "patterns": [
+              {
+                "group": ["@mui/material", "@mui/material/*"],
+                "message": "Please use @flipdish/portal-library components instead of Material-UI directly"
+              }
+            ]
+          }
+        }
+      }
+    }
+  },
+  "json": {
+    "parser": {
+      "allowTrailingCommas": true
+    }
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "single",
+      "trailingCommas": "all"
+    }
+  }
+}

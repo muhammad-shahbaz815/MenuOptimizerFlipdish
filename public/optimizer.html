@@ -1,0 +1,3056 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Menu Analyzer · Flipdish</title>
+  <!-- Flipdish brandbook calls for Clarendon Text Pro (display) + Roboto (body).
+       Clarendon isn't free-to-host, so we use Domine — the Google-fonts fallback
+       the brandbook specifies for G-Suite use. Nunito Black is the closest free
+       approximation to the Flipdish wordmark for the text-only placeholder
+       until the official SVG lands in /assets. -->
+  <link href="https://fonts.googleapis.com/css2?family=Domine:ital,wght@0,400;0,500;0,700;1,400;1,500;1,700&family=Nunito:wght@400;700;900&family=Roboto:wght@300;400;500;700;900&display=swap" rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script>
+    if (window.pdfjsLib) {
+      pdfjsLib.GlobalWorkerOptions.workerSrc =
+        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    }
+    // Apply saved theme synchronously to avoid flash of unstyled theme
+    (function () {
+      try {
+        var t = localStorage.getItem('menu-analyzer-theme');
+        if (t === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+      } catch (_) {}
+    })();
+  </script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* Flipdish brand palette (from the brandbook, March 2023).
+       Primary:   Black / White / Flippy Blue (#0B75D7)
+       Core:      Freezer Burn / Spicy Carrot / Pebble
+       Secondary: Donut Panic / Electric Lime (sparingly, data-viz only)
+
+       The legacy variable names (--cyan, --purple, --pink, --rose) are kept
+       so the rest of the stylesheet doesn't need to be rewritten — each one
+       now maps to the closest Flipdish equivalent. The brandbook colours
+       are also exposed under their proper names for new rules. */
+    :root {
+      /* Flipdish primary */
+      --flippy-blue: #0B75D7;
+      --flippy-blue-dark: #095BAA;
+      --flippy-blue-soft: rgba(11,117,215,0.10);
+      --flippy-blue-edge: rgba(11,117,215,0.30);
+      /* Flipdish core */
+      --freezer-burn: #A5E2F6;
+      --spicy-carrot: #F7742B;
+      --pebble: #EEEBE9;
+      /* Flipdish secondary */
+      --donut-panic: #FFBAE4;
+      --electric-lime: #CFF27D;
+
+      --bg: #ffffff;
+      --bg-2: var(--pebble);
+      --surface: #ffffff;
+      --surface-solid: #ffffff;
+      --pill: var(--pebble);
+      --pill-hover: #e2dfdd;
+      --border: rgba(15,23,42,0.10);
+      --border-strong: rgba(15,23,42,0.18);
+      --text: #000000;
+      --text-2: #475569;
+      --text-3: #94a3b8;
+
+      /* Legacy aliases — preserved so existing CSS rules keep working. */
+      --cyan:   var(--freezer-burn);
+      --purple: var(--flippy-blue);
+      --pink:   var(--spicy-carrot);
+      --mint:   #059669;
+      --rose:   var(--spicy-carrot);
+      --amber:  var(--spicy-carrot);
+
+      --primary-gradient: linear-gradient(135deg, var(--flippy-blue) 0%, var(--flippy-blue-dark) 100%);
+      --panel-gradient:   linear-gradient(135deg, rgba(11,117,215,0.06) 0%, rgba(165,226,246,0.08) 60%, rgba(255,255,255,0) 100%);
+      --sub-bg: rgba(15,23,42,0.03);
+      --hint-bg: var(--flippy-blue-soft);
+      --hint-icon-bg: rgba(11,117,215,0.15);
+      --hint-icon-border: var(--flippy-blue-edge);
+      --code-bg: var(--flippy-blue-soft);
+      --code-color: var(--flippy-blue);
+      --table-bg: #ffffff;
+      --table-zebra-bg: var(--pebble);
+      --shimmer-1: rgba(15,23,42,0.05);
+      --shimmer-2: rgba(15,23,42,0.10);
+      --chip-x-bg: rgba(15,23,42,0.06);
+      --radius: 18px;
+      --radius-sm: 12px;
+      --radius-pill: 999px;
+    }
+
+    :root[data-theme="dark"] {
+      --bg: #000000;
+      --bg-2: #0a0a0a;
+      --surface: rgba(20,20,20,0.92);
+      --surface-solid: #131313;
+      --pill: #1a1a1a;
+      --pill-hover: #232323;
+      --border: rgba(255,255,255,0.08);
+      --border-strong: rgba(255,255,255,0.14);
+      --text: #ffffff;
+      --text-2: #b5b7c9;
+      --text-3: #6b7088;
+
+      --cyan:   var(--freezer-burn);
+      --purple: var(--flippy-blue);
+      --pink:   var(--spicy-carrot);
+      --mint:   #34d399;
+      --rose:   var(--spicy-carrot);
+      --amber:  var(--spicy-carrot);
+
+      --panel-gradient: linear-gradient(135deg, rgba(11,117,215,0.16) 0%, rgba(165,226,246,0.10) 60%, rgba(0,0,0,0) 100%);
+      --sub-bg: rgba(0,0,0,0.32);
+      --hint-bg: rgba(255,255,255,0.02);
+      --hint-icon-bg: rgba(11,117,215,0.18);
+      --hint-icon-border: rgba(11,117,215,0.45);
+      --code-bg: rgba(255,255,255,0.06);
+      --code-color: var(--freezer-burn);
+      --table-bg: rgba(255,255,255,0.02);
+      --table-zebra-bg: transparent;
+      --shimmer-1: rgba(255,255,255,0.04);
+      --shimmer-2: rgba(255,255,255,0.10);
+      --chip-x-bg: rgba(255,255,255,0.06);
+    }
+
+    body {
+      font-family: 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+      background:
+        radial-gradient(1100px 600px at 88% -8%, rgba(11,117,215,0.10), transparent 60%),
+        radial-gradient(900px 500px at 5% 0%, rgba(165,226,246,0.20), transparent 60%),
+        var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+      padding-bottom: 4rem;
+    }
+
+    /* Flipdish display type. Domine is the brand-approved Google-fonts
+       fallback for Clarendon Text Pro. Used for the wordmark, big section
+       titles, and italic-blue emphasis spans. */
+    .display, h1.display, h2.display {
+      font-family: 'Domine', 'Times New Roman', serif;
+      font-weight: 400;
+      letter-spacing: -0.01em;
+    }
+    .accent {
+      font-family: 'Domine', 'Times New Roman', serif;
+      font-style: italic;
+      color: var(--flippy-blue);
+    }
+
+    .hero {
+      max-width: 1080px; margin: 0 auto;
+      padding: 1.75rem 1.5rem 1rem;
+      display: flex; align-items: center; gap: 14px;
+    }
+    /* Flipdish wordmark — text-only placeholder. Drop the official
+       SVG into /assets/flipdish-wordmark.svg and swap the contents of
+       <a class="brand-wordmark"> with <img src="..."> when ready. */
+    .brand-wordmark {
+      font-family: 'Nunito', 'Helvetica Neue', sans-serif;
+      font-weight: 900;
+      font-size: 26px;
+      letter-spacing: -0.045em;
+      color: var(--text);
+      text-decoration: none;
+      line-height: 1;
+    }
+    .brand-divider {
+      width: 1px; height: 22px;
+      background: var(--border-strong);
+      flex-shrink: 0;
+    }
+    .brand-name {
+      font-family: 'Domine', 'Times New Roman', serif;
+      font-size: 17px; font-weight: 400;
+      letter-spacing: -0.01em;
+      color: var(--text);
+    }
+    .brand-name em {
+      font-style: italic;
+      color: var(--flippy-blue);
+    }
+    .brand-pill {
+      margin-left: auto;
+      font-size: 11px; padding: 5px 12px;
+      background: var(--flippy-blue-soft);
+      color: var(--flippy-blue);
+      border: 1px solid var(--flippy-blue-edge);
+      border-radius: var(--radius-pill);
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+    }
+
+    .page {
+      max-width: 1080px; margin: 0 auto;
+      padding: 0 1.5rem;
+    }
+
+    .card {
+      position: relative;
+      background: var(--surface-solid);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.75rem;
+      margin-bottom: 1.25rem;
+      overflow: hidden;
+      isolation: isolate;
+    }
+    .card::before {
+      content: ''; position: absolute; inset: 0;
+      background: var(--panel-gradient);
+      pointer-events: none; z-index: -1;
+    }
+    .card::after {
+      content: ''; position: absolute; inset: 0;
+      border-radius: inherit; padding: 1px;
+      background: linear-gradient(135deg, rgba(11,117,215,0.30), rgba(165,226,246,0.24) 60%, rgba(238,235,233,0.20) 100%);
+      -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+              mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+      -webkit-mask-composite: xor;
+              mask-composite: exclude;
+      pointer-events: none;
+    }
+
+    .card-head {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 1.1rem; gap: 12px;
+    }
+    .card-title {
+      font-size: 18px; font-weight: 700; letter-spacing: -0.01em;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .card-title .emoji { font-size: 20px; }
+    .card-actions { display: flex; gap: 8px; }
+
+    /* Drop zone */
+    .drop-zone {
+      background: var(--sub-bg);
+      border: 1.5px dashed var(--border-strong);
+      border-radius: var(--radius-sm);
+      padding: 22px;
+      display: flex; align-items: center; gap: 16px;
+      transition: background 0.2s, border-color 0.2s;
+    }
+    .drop-zone.dragging {
+      border-color: var(--cyan);
+      background: rgba(165,226,246,0.10);
+    }
+    .drop-zone.has-file {
+      border-style: solid;
+      border-color: rgba(52,211,153,0.45);
+      background: rgba(52,211,153,0.07);
+    }
+
+    .choose-btn {
+      flex-shrink: 0;
+      padding: 11px 22px;
+      background: var(--pill);
+      color: var(--text);
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-pill);
+      font: 600 13.5px 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+    }
+    .choose-btn:hover { background: var(--pill-hover); }
+    .choose-btn:active { transform: scale(0.98); }
+
+    .file-status {
+      flex: 1; min-width: 0;
+      display: flex; align-items: center; gap: 10px;
+      color: var(--text-2); font-size: 13.5px;
+    }
+    .file-status .filename {
+      color: var(--text); font-weight: 600;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .file-status .filesize { color: var(--text-3); font-size: 12.5px; }
+    .file-clear {
+      margin-left: auto; flex-shrink: 0;
+      background: transparent; border: none; color: var(--text-3);
+      cursor: pointer; padding: 4px 8px;
+      font: inherit; font-size: 12.5px;
+    }
+    .file-clear:hover { color: var(--rose); }
+
+    .status-line {
+      margin-top: 14px;
+      font-family: ui-monospace, Menlo, Consolas, monospace;
+      font-size: 12.5px;
+      color: var(--mint);
+      display: flex; align-items: center; gap: 8px;
+    }
+    .status-line.muted { color: var(--text-3); }
+    .status-line.error { color: var(--rose); }
+    .status-line .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+    /* Inputs */
+    .field-label {
+      display: block;
+      font-size: 12.5px; font-weight: 600;
+      color: var(--text-2);
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+    .field-help {
+      font-size: 12.5px;
+      color: var(--text-3);
+      margin-top: 6px;
+      line-height: 1.5;
+    }
+    .text-input {
+      width: 100%;
+      background: var(--sub-bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: var(--radius-sm);
+      padding: 12px 14px;
+      font: 14px 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .text-input::placeholder { color: var(--text-3); }
+    .text-input:focus {
+      border-color: var(--purple);
+      box-shadow: 0 0 0 3px rgba(11,117,215,0.18);
+    }
+
+    .field-block { margin-bottom: 1.25rem; }
+    .field-block:last-of-type { margin-bottom: 1.25rem; }
+
+    .reports-zone {
+      background: var(--sub-bg);
+      border: 1.5px dashed var(--border-strong);
+      border-radius: var(--radius-sm);
+      padding: 16px;
+      display: flex; align-items: center; gap: 14px;
+      transition: background 0.2s, border-color 0.2s;
+    }
+    .reports-zone.dragging {
+      border-color: var(--cyan); background: rgba(165,226,246,0.10);
+    }
+    .reports-hint { font-size: 13px; color: var(--text-3); }
+
+    .reports-list {
+      margin-top: 10px;
+      display: flex; flex-wrap: wrap; gap: 8px;
+    }
+    .report-chip {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: rgba(11,117,215,0.10);
+      border: 1px solid rgba(11,117,215,0.28);
+      color: var(--text);
+      border-radius: var(--radius-pill);
+      padding: 6px 6px 6px 12px;
+      font-size: 12.5px; font-weight: 500;
+      max-width: 100%;
+    }
+    .report-chip .name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 220px; }
+    .report-chip .size { color: var(--text-3); font-size: 11.5px; }
+    .report-chip .x {
+      width: 22px; height: 22px;
+      border-radius: 50%; background: var(--chip-x-bg);
+      display: grid; place-items: center;
+      cursor: pointer; color: var(--text-3);
+      transition: background 0.15s, color 0.15s;
+    }
+    .report-chip .x:hover { background: rgba(251,113,133,0.20); color: var(--rose); }
+
+    /* Toggle switch (confirmatory-check opt-in) */
+    .toggle-row {
+      display: flex; gap: 14px; align-items: flex-start;
+      padding: 14px 16px;
+      background: var(--sub-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .toggle-row:hover { border-color: var(--border-strong); }
+    .toggle-row input[type="checkbox"] {
+      position: absolute; opacity: 0; pointer-events: none;
+    }
+    .toggle-track {
+      flex-shrink: 0;
+      width: 38px; height: 22px;
+      background: var(--pill-hover);
+      border: 1px solid var(--border-strong);
+      border-radius: 999px;
+      position: relative;
+      transition: background 0.2s, border-color 0.2s;
+      margin-top: 1px;
+    }
+    .toggle-thumb {
+      position: absolute;
+      top: 1px; left: 1px;
+      width: 18px; height: 18px;
+      border-radius: 50%;
+      background: var(--text-3);
+      transition: transform 0.2s, background 0.2s;
+    }
+    .toggle-row input[type="checkbox"]:checked ~ .toggle-track {
+      background: var(--primary-gradient);
+      border-color: transparent;
+    }
+    .toggle-row input[type="checkbox"]:checked ~ .toggle-track .toggle-thumb {
+      transform: translateX(16px);
+      background: #0b0d18;
+    }
+    .toggle-row input[type="checkbox"]:focus-visible ~ .toggle-track {
+      box-shadow: 0 0 0 3px rgba(11,117,215,0.30);
+    }
+    .toggle-text {
+      display: flex; flex-direction: column; gap: 2px;
+      min-width: 0;
+    }
+    .toggle-title { color: var(--text); font-size: 14px; font-weight: 700; }
+    .toggle-desc  { color: var(--text-3); font-size: 12.5px; font-weight: 500; line-height: 1.45; }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 12px 24px;
+      background: var(--pill);
+      border: 1px solid var(--border-strong);
+      color: var(--text);
+      border-radius: var(--radius-pill);
+      font: 600 14px 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+      cursor: pointer;
+      transition: transform 0.1s, background 0.2s, box-shadow 0.2s;
+    }
+    .btn:hover { background: var(--pill-hover); }
+    .btn:active { transform: scale(0.98); }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+    .btn-primary {
+      background: var(--primary-gradient);
+      color: #ffffff; border: none;
+      box-shadow: 0 6px 28px rgba(11,117,215,0.35);
+    }
+    .btn-primary:hover { box-shadow: 0 8px 36px rgba(11,117,215,0.50); }
+    .btn-outline-pink {
+      border-color: var(--flippy-blue-edge);
+      color: var(--flippy-blue);
+    }
+    .btn-beautify {
+      background: linear-gradient(135deg, var(--flippy-blue) 0%, var(--freezer-burn) 100%);
+      color: #ffffff; border: none;
+      box-shadow: 0 6px 28px rgba(11,117,215,0.35);
+    }
+    .btn-beautify:hover { box-shadow: 0 8px 36px rgba(11,117,215,0.50); }
+    .btn-notion {
+      background: linear-gradient(135deg, #2b2b2b 0%, #4a4a4a 100%);
+      color: #f5f5f5; border: none;
+      box-shadow: 0 6px 28px rgba(0,0,0,0.35);
+    }
+    .btn-notion:hover { box-shadow: 0 8px 36px rgba(0,0,0,0.48); }
+    .btn-notion-send {
+      background: linear-gradient(135deg, var(--flippy-blue) 0%, var(--flippy-blue-dark) 100%);
+      color: #ffffff; border: none;
+      box-shadow: 0 6px 28px rgba(11,117,215,0.45);
+    }
+    .btn-notion-send:hover { box-shadow: 0 8px 36px rgba(11,117,215,0.60); }
+
+    .btn-secondary {
+      background: var(--pill);
+      color: var(--text);
+      border: 1px solid var(--border-strong);
+    }
+    .btn-secondary:hover { background: var(--pill-hover); }
+
+    /* No-reports informational notice, shown only when no supporting reports
+       are attached. Sits just above the Optimize / Basic Analysis buttons. */
+    .reports-required-notice {
+      display: none;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 12px 14px;
+      margin-bottom: 12px;
+      background: rgba(251, 191, 36, 0.10);
+      border: 1px solid rgba(251, 191, 36, 0.40);
+      border-radius: var(--radius-sm);
+      color: var(--text-2);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+    .reports-required-notice.visible { display: flex; }
+    .reports-required-notice svg {
+      flex-shrink: 0;
+      margin-top: 2px;
+      color: var(--amber);
+    }
+    .reports-required-notice b { color: var(--text); }
+
+    /* Circular progress ring used inside the Create PDF button while the
+       format pass is streaming and the PDF is being rendered. */
+    .progress-ring {
+      position: relative;
+      width: 22px; height: 22px;
+      display: inline-block;
+      vertical-align: middle;
+    }
+    .progress-ring svg {
+      width: 100%; height: 100%;
+      transform: rotate(-90deg);
+    }
+    .progress-ring .pr-track {
+      fill: none;
+      stroke: rgba(11, 13, 24, 0.20);
+      stroke-width: 3;
+    }
+    .progress-ring .pr-fill {
+      fill: none;
+      stroke: #ffffff;
+      stroke-width: 3;
+      stroke-linecap: round;
+      stroke-dasharray: 56.5487;       /* 2 * π * 9 */
+      stroke-dashoffset: 56.5487;
+      transition: stroke-dashoffset 0.25s ease;
+    }
+    .progress-ring .pr-text {
+      position: absolute;
+      inset: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 8.5px; font-weight: 700;
+      color: #ffffff;
+      line-height: 1;
+    }
+    .btn-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 1rem; }
+
+    .hint {
+      margin-bottom: 1.25rem;
+      padding: 14px 16px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--hint-bg);
+      display: flex; gap: 12px; align-items: flex-start;
+      font-size: 13px; color: var(--text-2); line-height: 1.55;
+    }
+    .hint-icon {
+      flex-shrink: 0;
+      width: 28px; height: 28px;
+      background: var(--hint-icon-bg);
+      border: 1px solid var(--hint-icon-border);
+      border-radius: 8px;
+      display: grid; place-items: center;
+      color: var(--cyan);
+    }
+
+    #results { display: none; }
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 12px;
+    }
+    .metric {
+      padding: 18px 20px;
+      background: var(--sub-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      transition: transform 0.15s, border-color 0.2s;
+    }
+    .metric:hover { transform: translateY(-2px); border-color: var(--border-strong); }
+    .metric .icon-bubble {
+      width: 30px; height: 30px;
+      border-radius: 8px; display: grid; place-items: center;
+      margin-bottom: 14px;
+    }
+    .metric .metric-label {
+      font-size: 11px; color: var(--text-3);
+      margin-bottom: 4px; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.06em;
+    }
+    .metric .metric-value {
+      font-size: 28px; font-weight: 700; color: var(--text);
+      letter-spacing: -0.025em;
+    }
+    .metric.m-cyan   .icon-bubble { background: rgba(165,226,246,0.22); color: var(--cyan); }
+    .metric.m-purple .icon-bubble { background: rgba(11,117,215,0.22); color: var(--purple); }
+    .metric.m-mint   .icon-bubble { background: rgba(52,211,153,0.20);  color: var(--mint); }
+    .metric.m-amber  .icon-bubble { background: rgba(251,191,36,0.22);  color: var(--amber); }
+    .metric.m-pink   .icon-bubble { background: rgba(247,116,43,0.30); color: var(--pink); }
+
+    [data-theme="dark"] .metric.m-cyan   .icon-bubble { background: rgba(165,226,246,0.12); }
+    [data-theme="dark"] .metric.m-purple .icon-bubble { background: rgba(11,117,215,0.14); }
+    [data-theme="dark"] .metric.m-mint   .icon-bubble { background: rgba(52,211,153,0.12); }
+    [data-theme="dark"] .metric.m-amber  .icon-bubble { background: rgba(251,191,36,0.12); }
+    [data-theme="dark"] .metric.m-pink   .icon-bubble { background: rgba(247,116,43,0.14); }
+
+    /* Theme toggle button */
+    .theme-toggle {
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      background: var(--pill);
+      border: 1px solid var(--border);
+      color: var(--text-2);
+      cursor: pointer;
+      display: grid; place-items: center;
+      transition: background 0.2s, color 0.2s, transform 0.1s;
+      margin-left: 6px;
+    }
+    .theme-toggle:hover { background: var(--pill-hover); color: var(--text); }
+    .theme-toggle:active { transform: scale(0.95); }
+    .theme-toggle svg { width: 16px; height: 16px; display: block; }
+    .theme-toggle .icon-sun { display: none; }
+    .theme-toggle .icon-moon { display: block; }
+    [data-theme="dark"] .theme-toggle .icon-sun { display: block; }
+    [data-theme="dark"] .theme-toggle .icon-moon { display: none; }
+
+    /* Markdown analysis output (dark) */
+    .analysis-output {
+      background: var(--sub-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 1.5rem 1.75rem;
+      font-size: 14px;
+      line-height: 1.7;
+      color: var(--text-2);
+      min-height: 80px;
+      overflow-x: auto;
+    }
+    .analysis-output h2 {
+      font-size: 19px; color: var(--text); font-weight: 700;
+      margin: 1.6rem 0 0.85rem;
+      padding-bottom: 6px;
+      border-bottom: 1px solid var(--border-strong);
+      letter-spacing: -0.01em;
+    }
+    .analysis-output h2:first-child { margin-top: 0; }
+    .analysis-output h3 {
+      font-size: 15.5px; color: var(--cyan); font-weight: 600;
+      margin: 1.3rem 0 0.55rem;
+    }
+    .analysis-output p { margin-bottom: 0.85rem; }
+    .analysis-output ul, .analysis-output ol { padding-left: 22px; margin-bottom: 0.85rem; }
+    .analysis-output li { margin-bottom: 0.3rem; }
+    .analysis-output strong { color: var(--text); font-weight: 700; }
+    .analysis-output em { color: var(--text-2); }
+    .analysis-output code {
+      background: var(--code-bg);
+      padding: 1px 6px; border-radius: 4px;
+      font: 12.5px ui-monospace, Menlo, Consolas, monospace;
+      color: var(--code-color);
+    }
+    .analysis-output table {
+      width: 100%; border-collapse: collapse;
+      margin: 0.85rem 0 1.25rem;
+      font-size: 13px;
+      background: var(--table-bg);
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+    .analysis-output th {
+      background: rgba(11,117,215,0.18);
+      color: var(--text); text-align: left;
+      padding: 9px 12px; font-weight: 700;
+      border-bottom: 1px solid var(--border-strong);
+    }
+    .analysis-output tr:nth-child(even) td { background: var(--table-zebra-bg); }
+    .analysis-output td {
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border);
+      color: var(--text-2);
+      vertical-align: top;
+    }
+    .analysis-output tr:last-child td { border-bottom: none; }
+
+    .spinner {
+      width: 14px; height: 14px;
+      border: 2px solid rgba(255,255,255,0.30);
+      border-top-color: #ffffff;
+      border-radius: 50%;
+      animation: spin 0.65s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .skeleton {
+      background: linear-gradient(90deg, var(--shimmer-1) 25%, var(--shimmer-2) 50%, var(--shimmer-1) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      border-radius: 6px; height: 14px;
+    }
+    @keyframes shimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+
+    .reveal { animation: fadeUp 0.35s ease-out; }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Tool Navigation Bar */
+    .tool-nav {
+      max-width: 1080px;
+      margin: -0.5rem auto 1.5rem;
+      padding: 0 1.5rem;
+    }
+    .tool-nav-inner {
+      display: flex;
+      gap: 10px;
+      padding: 10px;
+      background: var(--sub-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-pill);
+      justify-content: center;
+    }
+    .tool-nav-btn {
+      flex: 1;
+      max-width: 200px;
+      padding: 12px 24px;
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--text-2);
+      border-radius: var(--radius-pill);
+      font: 600 14px 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .tool-nav-btn:hover {
+      background: var(--pill);
+      color: var(--text);
+      border-color: var(--border);
+    }
+    .tool-nav-btn.active {
+      background: var(--primary-gradient);
+      color: #ffffff;
+      border: none;
+      box-shadow: 0 4px 16px rgba(11,117,215,0.25);
+    }
+    .tool-nav-btn.active:hover {
+      box-shadow: 0 6px 20px rgba(11,117,215,0.35);
+    }
+
+    footer {
+      margin-top: 2rem;
+      font-size: 12px; color: var(--text-3); text-align: center;
+    }
+
+    @media (max-width: 640px) {
+      .card { padding: 1.25rem; }
+      .card-title { font-size: 16px; }
+      .drop-zone, .reports-zone { flex-direction: column; align-items: stretch; text-align: center; }
+      .file-status { justify-content: center; flex-wrap: wrap; }
+      .btn { width: 100%; justify-content: center; }
+    }
+
+    /* Footer link */
+    .footer-link {
+      background: none; border: none; padding: 0;
+      color: var(--text-2); cursor: pointer;
+      font: inherit; font-size: 12px;
+      text-decoration: underline; text-underline-offset: 3px;
+      text-decoration-color: var(--text-3);
+    }
+    .footer-link:hover { color: var(--text); text-decoration-color: var(--purple); }
+
+    /* Prompt-viewer modal */
+    .modal-backdrop {
+      position: fixed; inset: 0;
+      background: rgba(7, 9, 15, 0.55);
+      backdrop-filter: blur(4px);
+      display: flex; align-items: center; justify-content: center;
+      padding: 24px;
+      z-index: 1000;
+    }
+    [data-theme="dark"] .modal-backdrop { background: rgba(0, 0, 0, 0.65); }
+
+    .modal {
+      width: min(960px, 100%);
+      max-height: calc(100vh - 48px);
+      background: var(--surface-solid);
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius);
+      box-shadow: 0 20px 80px rgba(15, 23, 42, 0.25);
+      display: flex; flex-direction: column;
+      overflow: hidden;
+    }
+    .modal-head {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 20px; gap: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    .modal-head h2 {
+      font-size: 16px; font-weight: 700;
+      letter-spacing: -0.01em;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .modal-head .stats {
+      font: 11.5px ui-monospace, Menlo, Consolas, monospace;
+      color: var(--text-3);
+      text-align: right;
+    }
+    .modal-close {
+      width: 32px; height: 32px; border-radius: 50%;
+      border: 1px solid var(--border);
+      background: var(--pill); color: var(--text-2);
+      cursor: pointer; display: grid; place-items: center;
+      font-size: 18px; line-height: 1;
+      transition: background 0.15s, color 0.15s;
+    }
+    .modal-close:hover { background: var(--pill-hover); color: var(--text); }
+    .modal-tabs {
+      display: flex; gap: 4px;
+      padding: 8px 16px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .modal-tab {
+      padding: 8px 14px;
+      border: none; background: transparent;
+      color: var(--text-3);
+      font: 600 13px 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .modal-tab:hover { color: var(--text-2); }
+    .modal-tab.active {
+      color: var(--purple);
+      border-bottom-color: var(--purple);
+    }
+    .modal-body { flex: 1; overflow: auto; }
+    .modal-pane { display: none; padding: 16px 20px; }
+    .modal-pane.active { display: block; }
+    .pane-toolbar {
+      display: flex; justify-content: space-between; align-items: center;
+      gap: 10px; margin-bottom: 10px;
+      font: 12px ui-monospace, Menlo, Consolas, monospace;
+      color: var(--text-3);
+    }
+    .pane-toolbar .copy-btn {
+      padding: 6px 12px;
+      background: var(--pill); border: 1px solid var(--border);
+      color: var(--text); border-radius: var(--radius-pill);
+      font: 600 12px 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .pane-toolbar .copy-btn:hover { background: var(--pill-hover); border-color: var(--border-strong); }
+    .pane-toolbar .copy-btn.copied { background: rgba(52,211,153,0.18); color: var(--mint); border-color: var(--mint); }
+    .modal-pre {
+      background: var(--sub-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 14px 16px;
+      font: 12.5px/1.65 ui-monospace, Menlo, Consolas, monospace;
+      color: var(--text);
+      white-space: pre-wrap;
+      word-break: break-word;
+      max-height: 60vh; overflow: auto;
+    }
+    .modal-loading, .modal-error {
+      padding: 32px; text-align: center;
+      color: var(--text-3); font-size: 13px;
+    }
+    .modal-error { color: var(--rose); }
+
+    @media (max-width: 640px) {
+      .modal { max-height: 100vh; border-radius: 0; }
+      .modal-backdrop { padding: 0; }
+    }
+
+    /* Analysis progress UI (replaces the streaming markdown panel
+       while the LLM analyse pass runs). Progress bar at the top, then a
+       fade-in checklist of completed milestones below, then a final
+       completion message when the stream ends. */
+    .analysis-progress {
+      padding: 1.5rem 0.5rem 0.5rem;
+    }
+    .analysis-progress-bar {
+      width: 100%; height: 8px;
+      background: rgba(127,127,127,0.18);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .analysis-progress-fill {
+      height: 100%; width: 0%;
+      background: linear-gradient(90deg, var(--flippy-blue) 0%, var(--flippy-blue-dark) 100%);
+      transition: width 0.4s ease-out;
+      border-radius: 4px;
+    }
+    .analysis-progress-pct {
+      text-align: center;
+      margin: 10px 0 24px;
+      font-size: 13px;
+      color: var(--text-3);
+      font-variant-numeric: tabular-nums;
+    }
+    /* Banner under the progress bar shown when the server auto-promoted
+       to the 1M-context model because the slimmed menu was too large
+       for the standard 200K context window. */
+    .long-context-banner {
+      display: flex; align-items: flex-start; gap: 10px;
+      padding: 12px 14px;
+      margin: -12px 0 20px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--flippy-blue-edge);
+      background: var(--flippy-blue-soft);
+      color: var(--text);
+      font-size: 13px; line-height: 1.55;
+    }
+    .long-context-banner svg {
+      flex-shrink: 0;
+      margin-top: 2px;
+      color: var(--flippy-blue);
+    }
+    .long-context-banner strong { color: var(--flippy-blue); font-weight: 700; }
+    .analysis-checklist {
+      list-style: none; padding: 0; margin: 0;
+      display: flex; flex-direction: column; gap: 4px;
+    }
+    .analysis-checklist li {
+      padding: 8px 4px;
+      display: flex; align-items: center; gap: 12px;
+      color: var(--text-2);
+      font-size: 14px;
+      opacity: 0;
+      transform: translateY(6px);
+      transition: opacity 0.4s ease-out, transform 0.4s ease-out;
+    }
+    .analysis-checklist li.shown {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    .analysis-checklist li .tick {
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      background: rgba(74,222,128,0.18);
+      color: #4ade80;
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 13px; font-weight: 700;
+      flex-shrink: 0;
+    }
+    .analysis-complete {
+      margin-top: 2rem;
+      text-align: center;
+      font-size: 15px; line-height: 1.7;
+      color: var(--text-2);
+      opacity: 0;
+      transition: opacity 0.9s ease-out;
+    }
+    .analysis-complete.shown { opacity: 1; }
+    .analysis-complete strong { color: var(--text); }
+
+    /* "Formatting in Notion.." modal — shown after Send to Notion's API
+       call succeeds. Stays up for 60s with a smoothly-advancing bar
+       before the page link is revealed. */
+    .format-modal-backdrop {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.7);
+      backdrop-filter: blur(4px);
+      z-index: 9999;
+      display: flex; align-items: center; justify-content: center;
+      animation: fmFadeIn 0.25s ease-out;
+    }
+    @keyframes fmFadeIn { from { opacity: 0; } to { opacity: 1; } }
+    .format-modal-card {
+      background: var(--bg-2);
+      border: 1px solid var(--border-strong);
+      border-radius: 14px;
+      padding: 32px 40px;
+      min-width: 360px; max-width: 90vw;
+      text-align: center;
+      box-shadow: 0 30px 80px rgba(0,0,0,0.5);
+    }
+    .format-modal-title {
+      font: 600 17px 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+      color: var(--text);
+      margin-bottom: 22px;
+    }
+    .format-modal-bar {
+      width: 100%; height: 10px;
+      background: rgba(127,127,127,0.18);
+      border-radius: 5px;
+      overflow: hidden;
+    }
+    .format-modal-fill {
+      height: 100%; width: 0%;
+      background: linear-gradient(90deg, var(--flippy-blue) 0%, var(--flippy-blue-dark) 100%);
+      transition: width 1s linear;
+    }
+    .format-modal-pct {
+      margin-top: 12px;
+      font-size: 13px; color: var(--text-3);
+      font-variant-numeric: tabular-nums;
+    }
+    .format-modal-hint {
+      margin-top: 18px;
+      font-size: 12.5px;
+      font-style: italic;
+      color: var(--text-3);
+    }
+
+    /* "Large menu detected" confirmation modal — shown at Analyze click
+       when the uploaded file is over the size threshold. User confirms
+       to switch to the 1M-context Sonnet for this run. */
+    .size-modal-backdrop {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.7);
+      backdrop-filter: blur(4px);
+      z-index: 9999;
+      display: flex; align-items: center; justify-content: center;
+      animation: fmFadeIn 0.25s ease-out;
+    }
+    .size-modal-card {
+      background: var(--surface-solid);
+      border: 1px solid var(--border-strong);
+      border-radius: 14px;
+      padding: 28px 32px;
+      max-width: 480px;
+      width: calc(100% - 32px);
+      box-shadow: 0 30px 80px rgba(0,0,0,0.5);
+    }
+    .size-modal-title {
+      font-family: 'Domine', 'Times New Roman', serif;
+      font-size: 22px; font-weight: 700;
+      color: var(--text);
+      margin-bottom: 14px;
+    }
+    .size-modal-body {
+      font-size: 14px; line-height: 1.6;
+      color: var(--text);
+      margin-bottom: 12px;
+    }
+    .size-modal-body strong { color: var(--flippy-blue); }
+    .size-modal-points {
+      margin: 0 0 16px 18px;
+      padding: 0;
+      font-size: 13px; line-height: 1.65;
+      color: var(--text-2);
+    }
+    .size-modal-points li { margin-bottom: 4px; }
+    .size-modal-warning {
+      padding: 10px 12px;
+      border-radius: var(--radius-sm);
+      background: rgba(247,116,43,0.10);
+      border: 1px solid rgba(247,116,43,0.30);
+      color: var(--text);
+      font-size: 13px;
+    }
+    .size-modal-actions {
+      display: flex; justify-content: flex-end; gap: 10px;
+      margin-top: 18px;
+    }
+
+    /* Bottom action bar */
+    .bottom-actions {
+      margin-top: 1.25rem;
+      padding: 1.25rem 0 0;
+      display: flex; justify-content: center;
+      gap: 12px; flex-wrap: wrap;
+    }
+    .bottom-actions .btn { padding: 14px 28px; }
+
+    /* "Open in Notion" result chip — appears under the bottom-actions
+       row after Send to Notion succeeds. */
+    .notion-result {
+      margin-top: 12px;
+      display: flex; justify-content: center;
+    }
+    .notion-result a {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 10px 20px;
+      background: rgba(46, 160, 67, 0.12);
+      border: 1px solid rgba(46, 160, 67, 0.45);
+      color: #4ade80;
+      border-radius: var(--radius-pill);
+      font: 600 13px 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+      text-decoration: none;
+      transition: background 0.15s, transform 0.1s;
+    }
+    .notion-result a:hover {
+      background: rgba(46, 160, 67, 0.20);
+    }
+    .notion-result a:active { transform: scale(0.98); }
+
+    /* Review status banner */
+    .review-banner {
+      margin-bottom: 1rem;
+      padding: 12px 16px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: rgba(11,117,215,0.08);
+      font-size: 13px; color: var(--text-2);
+      display: flex; align-items: center; gap: 10px;
+    }
+    .review-banner .badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-weight: 600; color: var(--purple);
+    }
+    .review-banner.done .badge { color: var(--mint); }
+  </style>
+  <script>
+    // Inline copy of lib/prompts/slim-menu.js — kept in sync manually.
+    // Inlined so slimMenu is available synchronously (no async module race)
+    // and can be called before every fetch to /api/analyze|review|prompts.
+    (function () {
+      const NOISE_KEYS = new Set([
+        'createdat','updatedat','modifiedat','deletedat','created_at','updated_at','modified_at','deleted_at',
+        'createdon','updatedon','modifiedon','deletedon','createdby','updatedby','modifiedby',
+        'lastsyncedat','lastsyncat','lastupdated','lastmodified','created','updated','modified',
+        'imagebase64','imagedata','imageblob','rawhtml','rawhtmlcontent','htmlbody','rawjson',
+        'syncstate','sync_state','syncstatus','sync_status',
+        'tenantid','tenant_id','merchantid','merchant_id','accountid','account_id','organizationid','organization_id',
+        'orgid','org_id','ownerid','owner_id','workspaceid','workspace_id',
+        'etag','hash','sha','signature','checksum','fingerprint',
+        'internalid','internal_id','externalid','external_id','posid','pos_id','positemid','pos_item_id',
+        'legacyid','legacy_id','erpid','erp_id','sourceid','source_id','globalid','global_id',
+        'shortid','short_id','publicid','public_id','productcode','product_code','sku','barcode','plu',
+        'translations','translatedfields','translated_fields','localizations','localisations',
+        'i18n','locales','localecontent','locale_content','translatedname','translated_name','translateddescription','translated_description',
+        'nutrition','nutritionfacts','nutrition_facts','nutritioninfo','nutrition_info','nutritionalinfo','nutritional_info',
+        'allergens','allergeninfo','allergen_info','dietary','dietaryinfo','dietary_info','dietaryconfiguration','dietary_configuration',
+        'macros','caloriebreakdown','calorie_breakdown','kcal','energykj','energy_kj',
+        'availability','availabilitywindow','availability_window','availabilityschedule','availability_schedule',
+        'schedule','schedules','opentimes','open_times','openinghours','opening_hours',
+        'unavailabletimes','unavailable_times','datestart','dateend','date_start','date_end','startdate','enddate','start_date','end_date',
+      ]);
+      const IMAGE_URL_KEYS = new Set([
+        'image','images','imageurl','image_url','imageurls','image_urls','thumbnail','thumbnails',
+        'thumbnailurl','thumbnail_url','heroimage','hero_image','heroimageurl','hero_image_url',
+        'icon','iconurl','icon_url','banner','bannerurl','banner_url','photo','photos','photourl','photo_url',
+        'cover','coverimage','cover_image','coverimageurl','cover_image_url','backgroundimage','background_image',
+        'backgroundimageurl','background_image_url','logo','logourl','logo_url','picture','pictures',
+        'pictureurl','picture_url','avatar','avatarurl','avatar_url','imagepath','image_path',
+        'imagekey','image_key','mediaurl','media_url',
+      ]);
+      const MODIFIER_REF_KEYS = new Set(['modifierids','modifier_ids','modifiergroupids','modifier_group_ids']);
+      const MODIFIER_DEF_KEYS = new Set(['modifiers','modifiergroups','modifier_groups','optionsgroups','options_groups']);
+      const HARD_STRING_CAP = 800;
+      function compactImageValue(val) {
+        if (val == null || val === '' || val === false) return val;
+        if (Array.isArray(val)) return val.map(x => (x == null || x === '') ? x : (typeof x === 'string' ? '[image]' : (typeof x === 'object' && (x.url||x.src||x.href) ? '[image]' : x))).filter(x => x != null);
+        if (typeof val === 'string') return '[image]';
+        if (typeof val === 'object' && (val.url||val.src||val.href)) return '[image]';
+        return val;
+      }
+      function collectReferencedModifierIds(v, set) {
+        set = set || new Set();
+        if (v == null || typeof v !== 'object') return set;
+        if (Array.isArray(v)) { for (const item of v) collectReferencedModifierIds(item, set); return set; }
+        for (const [k, val] of Object.entries(v)) {
+          if (MODIFIER_REF_KEYS.has(k.toLowerCase()) && Array.isArray(val)) { for (const id of val) if (id != null) set.add(String(id)); }
+          else if (val && typeof val === 'object') collectReferencedModifierIds(val, set);
+        }
+        return set;
+      }
+      function isModifierDef(obj) {
+        if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return false;
+        const id = obj.id ?? obj.Id ?? obj.ID; if (id == null) return false;
+        return Array.isArray(obj.options)||Array.isArray(obj.Options)||Array.isArray(obj.choices)||Array.isArray(obj.Choices)||Array.isArray(obj.values)||Array.isArray(obj.Values)||Array.isArray(obj.modifiers)||Array.isArray(obj.Modifiers);
+      }
+      function isDisabledItem(obj) {
+        if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return false;
+        return obj.enabled===false||obj.isEnabled===false||obj.disabled===true||obj.isDisabled===true||obj.isActive===false||obj.active===false||obj.isAvailable===false||obj.available===false||obj.isDeleted===true||obj.deleted===true||obj.archived===true||obj.isArchived===true||!!(obj.deletedAt||obj.deleted_at||obj.archivedAt||obj.archived_at);
+      }
+      function _slimInner(v, refIds, parentKey) {
+        if (v == null) return v;
+        if (typeof v === 'string') {
+          if (v.startsWith('data:image')||v.startsWith('data:application')) return '[binary]';
+          let s = v;
+          if (/<[a-z][^>]*>/i.test(s)) s = s.replace(/<[^>]+>/g,' ').replace(/&nbsp;/g,' ').replace(/\s+/g,' ').trim();
+          if (s.length > HARD_STRING_CAP) s = s.slice(0, HARD_STRING_CAP) + `…[+${s.length - HARD_STRING_CAP} chars]`;
+          return s;
+        }
+        if (Array.isArray(v)) {
+          const isModifierArray = parentKey && MODIFIER_DEF_KEYS.has(parentKey.toLowerCase());
+          let items = v;
+          if (isModifierArray && refIds && refIds.size > 0) items = v.filter(obj => { if (!isModifierDef(obj)) return true; const id = String(obj.id??obj.Id??obj.ID); return refIds.has(id); });
+          return items.map(item => _slimInner(item, refIds, null)).filter(x => x !== undefined);
+        }
+        if (typeof v === 'object') {
+          if (isDisabledItem(v)) return undefined;
+          const out = {};
+          for (const [k, val] of Object.entries(v)) {
+            const kl = k.toLowerCase();
+            if (NOISE_KEYS.has(kl)) continue;
+            if (IMAGE_URL_KEYS.has(kl)) { out[k] = compactImageValue(val); continue; }
+            out[k] = _slimInner(val, refIds, k);
+          }
+          return out;
+        }
+        return v;
+      }
+      window._slimMenu = function slimMenu(v) {
+        const refIds = collectReferencedModifierIds(v);
+        return _slimInner(v, refIds, null);
+      };
+    })();
+  </script>
+</head>
+<body>
+
+  <header class="hero">
+    <!-- Wordmark — text placeholder until the official SVG lands in /assets.
+         When the file's in place, replace this <span> with:
+         <img src="assets/flipdish-wordmark.svg" alt="flipdish" class="brand-wordmark" /> -->
+    <span class="brand-wordmark">flipdish</span>
+    <div class="brand-divider" aria-hidden="true"></div>
+    <div class="brand-name">Menu <em>Analyzer</em></div>
+    <span class="brand-pill">Beta</span>
+    <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Toggle theme" title="Toggle dark/light theme" onclick="toggleTheme()">
+      <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+    </button>
+  </header>
+
+  <!-- Tool Navigation -->
+  <nav class="tool-nav">
+    <div class="tool-nav-inner">
+      <a href="/" class="tool-nav-btn active">Optimizer</a>
+      <a href="/reviewer/" class="tool-nav-btn">Preview Menu</a>
+    </div>
+  </nav>
+
+  <main class="page">
+
+    <!-- Step 1 -->
+    <section class="card">
+      <div class="card-head">
+        <div class="card-title">
+          <span class="emoji">📁</span>
+          Step 1: Load Menu JSON
+        </div>
+      </div>
+
+      <div class="drop-zone" id="drop-zone">
+        <button type="button" class="choose-btn" onclick="document.getElementById('file-input').click()">Choose File</button>
+        <input type="file" id="file-input" accept=".json,application/json" style="display:none" />
+        <div class="file-status" id="file-status">
+          <span class="filename" id="file-name">No file chosen</span>
+          <span class="filesize" id="file-size"></span>
+        </div>
+        <button type="button" class="file-clear" id="file-clear" onclick="clearFile()" style="display:none">Remove</button>
+      </div>
+
+      <div class="status-line muted" id="status-line"><span class="dot"></span> Ready for Menu Upload.</div>
+    </section>
+
+    <!-- Initial hint -->
+    <div class="hint" id="empty-hint">
+      <div class="hint-icon">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+      </div>
+      <div>
+        Upload your Flipdish menu export above. Once it's loaded, you'll be able to add a location for competitive analysis, attach supporting business reports, and choose whether the audit should display on screen or download as a PDF.
+      </div>
+    </div>
+
+    <!-- Step 2 — context (optional) + format + optimize -->
+    <section class="card" id="step2" style="display:none">
+      <div class="card-head">
+        <div class="card-title">
+          <span class="emoji">⚡</span>
+          Step 2: Optimize
+        </div>
+      </div>
+
+      <div class="field-block">
+        <label class="field-label" for="location-input">Restaurant location <span style="text-transform:none;color:var(--text-3);font-weight:500;letter-spacing:0">— optional</span></label>
+        <input type="text" class="text-input" id="location-input" placeholder="e.g. 109 Saint Margarets Road, Twickenham TW1 2LH" />
+        <div class="field-help">If provided, the audit includes a 45-mile-radius competitive comparison and revenue-strategy section.</div>
+      </div>
+
+      <div class="field-block">
+        <label class="field-label">Supporting business reports <span style="text-transform:none;color:var(--text-3);font-weight:500;letter-spacing:0">— optional</span></label>
+        <div class="reports-zone" id="reports-zone">
+          <button type="button" class="choose-btn" onclick="document.getElementById('reports-input').click()">Add Files</button>
+          <input type="file" id="reports-input" accept=".pdf,.txt,.md,.csv,application/pdf,text/plain,text/markdown,text/csv" multiple style="display:none" />
+          <span class="reports-hint">Drop PDFs, TXT, MD, or CSV here, or click Add Files</span>
+        </div>
+        <div class="reports-list" id="reports-list"></div>
+        <div class="field-help">Revenue reports, prior audits, customer feedback, sales data — anything that should inform the analysis. Text is extracted and sent to Claude.</div>
+      </div>
+
+      <div class="field-block">
+        <label class="toggle-row" for="enable-thinking">
+          <input type="checkbox" id="enable-thinking" checked />
+          <span class="toggle-track"><span class="toggle-thumb"></span></span>
+          <span class="toggle-text">
+            <span class="toggle-title">Extended thinking (recommended)</span>
+            <span class="toggle-desc">Claude reasons through the analysis before writing — improves quality and specificity of recommendations. Adds about 10–30 seconds, during which no text appears on screen yet.</span>
+          </span>
+        </label>
+      </div>
+
+      <div class="field-block">
+        <label class="toggle-row" for="use-sonnet">
+          <input type="checkbox" id="use-sonnet" />
+          <span class="toggle-track"><span class="toggle-thumb"></span></span>
+          <span class="toggle-text">
+            <span class="toggle-title">Test with Sonnet (5× cheaper)</span>
+            <span class="toggle-desc">Run this audit on Claude Sonnet instead of Opus for cost / quality comparison. Off by default — production runs use Opus. Applies to every LLM call this run: analyze, confirmatory check, format passes.</span>
+          </span>
+        </label>
+      </div>
+
+      <div class="field-block">
+        <label class="toggle-row" for="enable-review">
+          <input type="checkbox" id="enable-review" checked />
+          <span class="toggle-track"><span class="toggle-thumb"></span></span>
+          <span class="toggle-text">
+            <span class="toggle-title">Run confirmatory check (recommended)</span>
+            <span class="toggle-desc">After the first-pass audit completes, run a second pass that uses the first pass as reference and verifies / tightens the findings. Adds about 30–60 seconds.</span>
+          </span>
+        </label>
+      </div>
+
+      <div class="field-block">
+        <label class="toggle-row" for="use-test-prompt">
+          <input type="checkbox" id="use-test-prompt" />
+          <span class="toggle-track"><span class="toggle-thumb"></span></span>
+          <span class="toggle-text">
+            <span class="toggle-title">Use test prompt</span>
+            <span class="toggle-desc">Run the experimental long-form consulting prompt (targets 8,000–12,000 words). Skips the confirmatory check and appends a Section 13 Action Plan Summary automatically. Off by default.</span>
+          </span>
+        </label>
+      </div>
+
+      <div class="reports-required-notice" id="reports-required-notice">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+        <span>
+          <b>No business reports provided.</b> Only <b>Basic Analysis</b> is available — a structural audit of the menu JSON without revenue, consumer-behaviour, or competitive insights. Add reports above to unlock <b>Full Optimize</b>.
+        </span>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-primary" id="analyze-btn" onclick="runAnalysis('full')" disabled>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z"/></svg>
+          Full Optimize
+        </button>
+        <button class="btn btn-secondary" id="basic-analysis-btn" onclick="runAnalysis('basic')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11H5a2 2 0 0 0-2 2v7h18v-7a2 2 0 0 0-2-2h-4"/><path d="M14 4h-4l-1 5h6z"/></svg>
+          Basic Analysis
+        </button>
+      </div>
+    </section>
+
+    <!-- Results -->
+    <div id="results">
+      <!-- Audit Summary KPI tiles — hidden for now. The new analyze prompt
+           doesn't emit the metrics JSON block this card was bound to, so
+           it would render empty. Kept in the DOM (display:none) so we can
+           restore it later without re-writing the HTML. -->
+      <section class="card" style="display:none">
+        <div class="card-head">
+          <div class="card-title">
+            <span class="emoji">📊</span>
+            Audit Summary
+          </div>
+        </div>
+        <div class="metrics-grid" id="metrics-grid"></div>
+      </section>
+
+      <section class="card">
+        <div class="card-head">
+          <div class="card-title">
+            <span class="emoji">📝</span>
+            Full Analysis
+          </div>
+        </div>
+        <div class="review-banner" id="review-banner" style="display:none">
+          <span class="badge" id="review-badge">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+            Confirmatory check
+          </span>
+          <span id="review-status-text">Running the confirmatory pass…</span>
+        </div>
+        <!-- Streaming markdown output — hidden for now (we may re-enable later).
+             lastAnalysisText still gets populated from the stream so the
+             Send to Notion button has audit content to send. -->
+        <div class="analysis-output" id="analysis-text" style="display:none"></div>
+
+        <!-- New progress UI replaces the streaming output while the audit runs. -->
+        <div class="analysis-progress" id="analysis-progress" style="display:none">
+          <div class="analysis-progress-bar">
+            <div class="analysis-progress-fill" id="analysis-progress-fill"></div>
+          </div>
+          <div class="analysis-progress-pct" id="analysis-progress-pct">0%</div>
+          <!-- Auto-promotion banner — fades in when the server signalled it
+               had to switch to the 1M-context Sonnet variant because the
+               slimmed menu was larger than the standard 200K context window
+               could fit. Copy adapts when the menu was also too big for one
+               1M call and got split into multiple chunks. -->
+          <div class="long-context-banner" id="long-context-banner" style="display:none">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+            <span id="long-context-banner-text">
+              <strong>Large menu detected.</strong>
+              Auto-switched to <strong>Claude Sonnet (1M context)</strong> for this run.
+              Output style and cost may differ slightly from the default Opus model.
+            </span>
+          </div>
+          <ul class="analysis-checklist" id="analysis-checklist"></ul>
+          <div class="analysis-complete" id="analysis-complete" style="display:none">
+            <strong>Report prepared.</strong><br>
+            Brought to you by the <strong>Flipdish Menu Team</strong>.<br>
+            Click below to initiate export to Notion database.
+          </div>
+        </div>
+      </section>
+
+      <div class="bottom-actions" id="bottom-actions" style="display:none">
+        <!-- Beautify PDF — hidden for now. Kept in the DOM (display:none) so
+             the JS that disables it during other actions still finds the
+             element. To re-enable, remove the inline display:none. -->
+        <button class="btn btn-beautify" id="beautify-btn" onclick="downloadPDF('beautify')" style="display:none">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v3M12 18v3M5 12H2M22 12h-3M4.5 4.5l2 2M17.5 17.5l2 2M4.5 19.5l2-2M17.5 6.5l2-2"/><circle cx="12" cy="12" r="4"/></svg>
+          Beautify PDF
+        </button>
+        <button class="btn btn-notion" id="download-md-btn" onclick="downloadMarkdown()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Download for Notion
+        </button>
+        <button class="btn btn-notion-send" id="send-notion-btn" onclick="sendToNotion()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          Send to Notion
+        </button>
+        <!-- Create PDF — hidden for now. Kept in the DOM (display:none) so
+             the JS that disables it during other actions still finds the
+             element. To re-enable, remove the inline display:none. -->
+        <button class="btn btn-primary" id="create-pdf-btn" onclick="createPDF()" style="display:none">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+          Create PDF
+        </button>
+      </div>
+      <div class="notion-result" id="notion-result" style="display:none"></div>
+    </div>
+
+    <footer>
+      <button type="button" class="footer-link" onclick="openPromptViewer()">View prompts</button>
+      &nbsp;·&nbsp; Powered by Claude (Anthropic) · Flipdish menu team
+    </footer>
+  </main>
+
+  <!-- Prompt viewer modal -->
+  <div class="modal-backdrop" id="prompt-modal" style="display:none" role="dialog" aria-modal="true" aria-labelledby="prompt-modal-title">
+    <div class="modal" onclick="event.stopPropagation()">
+      <div class="modal-head">
+        <h2 id="prompt-modal-title">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/></svg>
+          Prompts being sent to Claude
+        </h2>
+        <div style="display:flex; align-items:center; gap:14px;">
+          <div class="stats" id="prompt-stats"></div>
+          <button type="button" class="modal-close" aria-label="Close" onclick="closePromptViewer()">×</button>
+        </div>
+      </div>
+      <div class="modal-tabs">
+        <button class="modal-tab active" data-tab="analyze" onclick="switchPromptTab('analyze')">Analyze · first pass</button>
+        <button class="modal-tab" data-tab="review" onclick="switchPromptTab('review')">Review · confirmatory</button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-pane active" id="pane-analyze">
+          <div class="pane-toolbar">
+            <span id="analyze-meta">First-pass audit prompt</span>
+            <button type="button" class="copy-btn" onclick="copyPrompt('analyze', this)">Copy</button>
+          </div>
+          <pre class="modal-pre" id="prompt-analyze">Loading…</pre>
+        </div>
+        <div class="modal-pane" id="pane-review">
+          <div class="pane-toolbar">
+            <span id="review-meta">Confirmatory-check prompt (uses last first-pass output if present)</span>
+            <button type="button" class="copy-btn" onclick="copyPrompt('review', this)">Copy</button>
+          </div>
+          <pre class="modal-pre" id="prompt-review">Loading…</pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- "Formatting in Notion.." overlay — shown for ~60s after Send to Notion
+       creates the page, before the page link is revealed. -->
+  <div class="format-modal-backdrop" id="format-modal" style="display:none" role="dialog" aria-modal="true" aria-labelledby="format-modal-title">
+    <div class="format-modal-card">
+      <div class="format-modal-title" id="format-modal-title">Formatting in Notion..</div>
+      <div class="format-modal-bar">
+        <div class="format-modal-fill" id="format-modal-fill"></div>
+      </div>
+      <div class="format-modal-pct" id="format-modal-pct">0%</div>
+      <div class="format-modal-hint">Applying styles, tables, and section colours.</div>
+    </div>
+  </div>
+
+  <!-- Large-menu confirmation overlay — shown when the user clicks Analyze
+       on a menu over the size threshold. Explains the switch to the
+       1M-context Sonnet variant and asks for an explicit confirmation. -->
+  <div class="size-modal-backdrop" id="size-modal" style="display:none" role="dialog" aria-modal="true" aria-labelledby="size-modal-title">
+    <div class="size-modal-card">
+      <div class="size-modal-title" id="size-modal-title">Large menu detected</div>
+      <p class="size-modal-body" id="size-modal-body">
+        Your menu file is <strong id="size-modal-size">—</strong>, which is too large for our
+        standard <strong>200K-token</strong> analysis model. We can switch to
+        <strong>Claude Sonnet (1M-token context)</strong> just for this run.
+      </p>
+      <ul class="size-modal-points">
+        <li>Output style may differ slightly from the default Opus model.</li>
+        <li>Cost is comparable (Sonnet is ~5× cheaper per token, but the larger context offsets some savings).</li>
+        <li>Affects only this run — your default setting is unchanged.</li>
+      </ul>
+      <p class="size-modal-body size-modal-warning" id="size-modal-warning" style="display:none">
+        ⚠️ Even at 1M tokens this menu may not fit. We'll try anyway, but you may need to split the menu or remove unused/disabled items.
+      </p>
+      <div class="size-modal-actions">
+        <button type="button" class="btn" onclick="cancelSizeModal()">Cancel</button>
+        <button type="button" class="btn btn-primary" onclick="confirmSizeModal()">Use 1M Context</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentMenu = null;
+    let currentFileName = null;
+    let currentMenuRawSize = 0;   // raw .json byte count; used to decide whether to
+                                  // show the "switch to 1M-context model" modal
+                                  // before kicking off the analyze request
+    let lastAnalysisText = '';
+    let lastAnalysisHtml = '';
+    let lastMetrics = null;
+    let supportingReports = []; // [{ name, content, size }]
+
+    if (window.marked) {
+      marked.setOptions({ gfm: true, breaks: false, headerIds: false, mangle: false });
+    }
+
+    function toggleTheme() {
+      const cur = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+      const next = cur === 'dark' ? 'light' : 'dark';
+      if (next === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+      else document.documentElement.removeAttribute('data-theme');
+      try { localStorage.setItem('menu-analyzer-theme', next); } catch (_) {}
+    }
+
+    // ----- Prompt viewer -----
+    async function openPromptViewer() {
+      const modal = document.getElementById('prompt-modal');
+      modal.style.display = 'flex';
+      document.body.style.overflow = 'hidden';
+
+      const analyzeEl = document.getElementById('prompt-analyze');
+      const reviewEl = document.getElementById('prompt-review');
+      analyzeEl.textContent = 'Loading…';
+      reviewEl.textContent = 'Loading…';
+      document.getElementById('prompt-stats').textContent = '';
+
+      const location = (document.getElementById('location-input')?.value || '').trim();
+      const useExtendedThinking = document.getElementById('enable-thinking')?.checked !== false;
+      const useSonnet = document.getElementById('use-sonnet')?.checked === true;
+      // The View Prompts modal previews whichever mode would actually run:
+      // basic when there are no reports attached, full otherwise.
+      const mode = supportingReports.length === 0 ? 'basic' : 'full';
+      const body = {
+        menu: (window._slimMenu && currentMenu) ? window._slimMenu(currentMenu) : (currentMenu || undefined),
+        location: location || undefined,
+        supportingReports: supportingReports.map(r => ({ name: r.name, content: r.content })),
+        firstPassAudit: lastAnalysisText || undefined,
+        useExtendedThinking,
+        useSonnet,
+        mode,
+      };
+
+      try {
+        const res = await fetch('/api/prompts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err?.error || (res.status + ' ' + res.statusText));
+        }
+        const data = await res.json();
+        analyzeEl.textContent = data.analyze || '(empty)';
+        reviewEl.textContent = data.review || '(empty)';
+
+        const stats = [];
+        stats.push('model: ' + (data.model || '—'));
+        stats.push('max_tokens: ' + (data.max_tokens || '—'));
+        if (typeof data.extended_thinking === 'boolean') {
+          stats.push('thinking: ' + (data.extended_thinking
+            ? 'on (' + (data.thinking_budget_tokens || 0) + 'tk)'
+            : 'off'));
+        }
+        if (typeof data.web_search === 'boolean') {
+          stats.push('web search: ' + (data.web_search ? 'on' : 'off'));
+        }
+        if (data.basic_mode) {
+          stats.push('mode: BASIC ANALYSIS');
+        }
+        if (data.slim_stats) {
+          stats.push('menu: ' + Math.round(data.slim_stats.original_chars / 1000) + 'KB → ' +
+                     Math.round(data.slim_stats.slimmed_chars / 1000) + 'KB (' +
+                     '−' + data.slim_stats.reduction_pct + '%)');
+        }
+        if (data.reports_count) stats.push('reports: ' + data.reports_count);
+        document.getElementById('prompt-stats').textContent = stats.join(' · ');
+
+        document.getElementById('analyze-meta').textContent =
+          'Analyze prompt · ' + (analyzeEl.textContent.length.toLocaleString()) + ' chars';
+        document.getElementById('review-meta').textContent =
+          (lastAnalysisText
+            ? 'Review prompt · '
+            : 'Review prompt (showing template — run an analysis to see your first-pass injected) · ') +
+          reviewEl.textContent.length.toLocaleString() + ' chars';
+      } catch (e) {
+        analyzeEl.textContent = 'Failed to load prompts: ' + e.message;
+        reviewEl.textContent = 'Failed to load prompts: ' + e.message;
+      }
+    }
+
+    function closePromptViewer() {
+      document.getElementById('prompt-modal').style.display = 'none';
+      document.body.style.overflow = '';
+    }
+
+    function switchPromptTab(name) {
+      document.querySelectorAll('.modal-tab').forEach(el => {
+        el.classList.toggle('active', el.dataset.tab === name);
+      });
+      document.querySelectorAll('.modal-pane').forEach(el => {
+        el.classList.toggle('active', el.id === 'pane-' + name);
+      });
+    }
+
+    async function copyPrompt(name, btn) {
+      const el = document.getElementById('prompt-' + name);
+      try {
+        await navigator.clipboard.writeText(el.textContent);
+        const original = btn.textContent;
+        btn.textContent = 'Copied ✓';
+        btn.classList.add('copied');
+        setTimeout(() => { btn.textContent = original; btn.classList.remove('copied'); }, 1500);
+      } catch (e) {
+        btn.textContent = 'Copy failed';
+        setTimeout(() => { btn.textContent = 'Copy'; }, 1500);
+      }
+    }
+
+    // Close modal on Escape or backdrop click
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape' && document.getElementById('prompt-modal').style.display !== 'none') {
+        closePromptViewer();
+      }
+    });
+    document.getElementById('prompt-modal').addEventListener('click', e => {
+      if (e.target.id === 'prompt-modal') closePromptViewer();
+    });
+
+    // ----- Step 1: menu JSON file -----
+    const fileInput = document.getElementById('file-input');
+    const dropZone = document.getElementById('drop-zone');
+    const statusLine = document.getElementById('status-line');
+
+    fileInput.addEventListener('change', e => {
+      if (e.target.files[0]) loadMenuFile(e.target.files[0]);
+    });
+
+    ['dragenter','dragover'].forEach(ev =>
+      dropZone.addEventListener(ev, e => { e.preventDefault(); dropZone.classList.add('dragging'); }));
+    ['dragleave','drop'].forEach(ev =>
+      dropZone.addEventListener(ev, e => { e.preventDefault(); dropZone.classList.remove('dragging'); }));
+    dropZone.addEventListener('drop', e => {
+      const file = e.dataTransfer.files[0];
+      if (file) loadMenuFile(file);
+    });
+
+    function loadMenuFile(file) {
+      if (!(file.type === 'application/json' || file.name.toLowerCase().endsWith('.json'))) {
+        setStatus('error', 'Please choose a .json file.');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = ev => {
+        try {
+          currentMenu = JSON.parse(ev.target.result);
+          currentFileName = file.name;
+          currentMenuRawSize = file.size;
+          document.getElementById('file-name').textContent = file.name;
+          document.getElementById('file-size').textContent = formatBytes(file.size);
+          document.getElementById('file-clear').style.display = 'block';
+          dropZone.classList.add('has-file');
+          setStatus('ok', 'Menu loaded · ready to optimize.');
+          revealStep2();
+        } catch (err) {
+          setStatus('error', 'Invalid JSON: ' + err.message);
+          currentMenu = null;
+          currentMenuRawSize = 0;
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    function clearFile() {
+      currentMenu = null;
+      currentMenuRawSize = 0;
+      currentFileName = null;
+      fileInput.value = '';
+      document.getElementById('file-name').textContent = 'No file chosen';
+      document.getElementById('file-size').textContent = '';
+      document.getElementById('file-clear').style.display = 'none';
+      dropZone.classList.remove('has-file');
+      setStatus('muted', 'Ready for Menu Upload.');
+      document.getElementById('step2').style.display = 'none';
+      document.getElementById('results').style.display = 'none';
+      document.getElementById('bottom-actions').style.display = 'none';
+      document.getElementById('notion-result').style.display = 'none';
+      document.getElementById('notion-result').innerHTML = '';
+      document.getElementById('review-banner').style.display = 'none';
+      document.getElementById('analysis-progress').style.display = 'none';
+      document.getElementById('empty-hint').style.display = '';
+    }
+
+    function revealStep2() {
+      const step2 = document.getElementById('step2');
+      step2.style.display = '';
+      step2.classList.remove('reveal'); void step2.offsetWidth; step2.classList.add('reveal');
+      document.getElementById('empty-hint').style.display = 'none';
+      updateReportsAvailability();
+      step2.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    function setStatus(kind, text) {
+      statusLine.className = 'status-line ' + (kind === 'ok' ? '' : kind);
+      statusLine.innerHTML = '<span class="dot"></span> ' + text;
+    }
+
+    function formatBytes(b) {
+      if (b < 1024) return b + ' B';
+      if (b < 1024*1024) return (b/1024).toFixed(1) + ' KB';
+      return (b/1024/1024).toFixed(2) + ' MB';
+    }
+
+    // ----- Supporting reports -----
+    const reportsInput = document.getElementById('reports-input');
+    const reportsZone = document.getElementById('reports-zone');
+
+    reportsInput.addEventListener('change', e => {
+      addReports(e.target.files);
+      reportsInput.value = '';
+    });
+    ['dragenter','dragover'].forEach(ev =>
+      reportsZone.addEventListener(ev, e => { e.preventDefault(); reportsZone.classList.add('dragging'); }));
+    ['dragleave','drop'].forEach(ev =>
+      reportsZone.addEventListener(ev, e => { e.preventDefault(); reportsZone.classList.remove('dragging'); }));
+    reportsZone.addEventListener('drop', e => {
+      if (e.dataTransfer.files.length) addReports(e.dataTransfer.files);
+    });
+
+    async function addReports(fileList) {
+      for (const file of Array.from(fileList)) {
+        const ext = file.name.toLowerCase().split('.').pop();
+        try {
+          let content;
+          if (ext === 'pdf') {
+            content = await extractPDFText(file);
+          } else if (['txt','md','markdown','csv','log'].includes(ext) || file.type.startsWith('text/')) {
+            content = await file.text();
+          } else {
+            setStatus('error', 'Unsupported report type: ' + file.name);
+            continue;
+          }
+          supportingReports.push({ name: file.name, content: content || '', size: file.size });
+          renderReports();
+        } catch (e) {
+          setStatus('error', 'Failed to read ' + file.name + ': ' + e.message);
+        }
+      }
+    }
+
+    async function extractPDFText(file) {
+      const buf = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+      const parts = [];
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const tc = await page.getTextContent();
+        parts.push(tc.items.map(it => it.str).join(' '));
+      }
+      return parts.join('\n\n').trim();
+    }
+
+    function renderReports() {
+      const list = document.getElementById('reports-list');
+      list.innerHTML = supportingReports.map((r, i) =>
+        '<span class="report-chip">' +
+          '<span class="name" title="' + escapeAttr(r.name) + '">' + escapeHtml(r.name) + '</span>' +
+          '<span class="size">' + formatBytes(r.size) + '</span>' +
+          '<span class="x" title="Remove" onclick="removeReport(' + i + ')">×</span>' +
+        '</span>'
+      ).join('');
+      updateReportsAvailability();
+    }
+
+    // When no supporting reports are attached, the full Optimize pipeline
+    // would have to fabricate business analysis (AOV / day-of-week / etc.)
+    // since it has no source data. Disable Full Optimize in that state and
+    // surface a notice telling the user that only Basic Analysis is
+    // available until they add reports.
+    function updateReportsAvailability() {
+      const hasReports = supportingReports.length > 0;
+      const notice = document.getElementById('reports-required-notice');
+      const fullBtn = document.getElementById('analyze-btn');
+      if (notice) notice.classList.toggle('visible', !hasReports);
+      if (fullBtn) {
+        fullBtn.disabled = !hasReports;
+        fullBtn.title = hasReports
+          ? ''
+          : 'Upload supporting business reports above to enable the full audit';
+      }
+    }
+
+    function removeReport(i) {
+      supportingReports.splice(i, 1);
+      renderReports();
+    }
+
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+    function escapeAttr(s) { return escapeHtml(s); }
+
+    // ----- First-pass output sanity check ---------------------------------
+    // Looks for the patterns that have produced broken PDFs on past runs:
+    //   - missing required section heading
+    //   - tables emitted as inline-pipe streams (no newlines between rows)
+    //   - menu metadata leaking into a stray document title
+    //   - section heading swallowed into the previous table's last cell
+    // Returns an array of issue strings; empty means clean.
+    function validateFirstPassOutput(text, hasLocation) {
+      const issues = [];
+      if (!text || text.length < 200) {
+        issues.push('output is suspiciously short (' + (text ? text.length : 0) + ' chars)');
+        return issues;
+      }
+
+      // Required section headings — loose enough to match both the analyze
+      // prompt and the review prompt (which sometimes uses slightly different
+      // wording, e.g. "Image Coverage by Category" vs "Image Coverage by
+      // items in a Category"). Section 7 (Competitive Strategy) is optional
+      // because the review prompt intentionally skips it.
+      const requiredHeadings = [
+        { re: /^##\s+1\.\s+Headline\b/im,             name: 'Section 1 (Headline Counts)' },
+        { re: /^##\s+2\.\s+Image Coverage\b/im,       name: 'Section 2 (Image Coverage)' },
+        { re: /^##\s+3\.\s+The "?Upsells"?/im,        name: 'Section 3 (Upsells Finding)' },
+        { re: /^##\s+4\.\s+Items in the Wrong\b/im,   name: 'Section 4 (Items in Wrong Category)' },
+        { re: /^##\s+5\.\s+Other Data-Quality\b/im,   name: 'Section 5 (Data-Quality Issues)' },
+        { re: /^##\s+6\.\s+Consumer Behaviour\b/im,   name: 'Section 6 (Consumer Behaviour)' },
+        { re: /^##\s+8\.\s+Recommendations\b/im,      name: 'Section 8 (Recommendations)' },
+        { re: /^##\s+9\.\s+Net Summary\b/im,          name: 'Section 9 (Net Summary)' },
+      ];
+      void hasLocation;
+      for (const { re, name } of requiredHeadings) {
+        if (!re.test(text)) issues.push('missing heading: ' + name);
+      }
+
+      // Detect inline-pipe tables — a line with an unusually high pipe count
+      // is almost certainly multiple rows concatenated.
+      const lines = text.split('\n');
+      for (const line of lines) {
+        const pipes = (line.match(/\|/g) || []).length;
+        if (pipes >= 14) {
+          issues.push('inline-pipe table on one line (' + pipes + ' pipes)');
+          break;
+        }
+      }
+
+      // Detect a stray pre-section-1 title containing menu metadata
+      const beforeSection1 = text.split(/^##\s+1\.\s+Headline Counts\b/m)[0] || '';
+      if (/\bRevision\b|\bPublished\b|\bDraft\b|\bActive\b/i.test(beforeSection1)) {
+        issues.push('menu-metadata leakage in pre-section title');
+      }
+
+      // Heading swallowed into the previous table's last cell
+      if (/\|[^|\n]*Food vs Drink split[^|\n]*\|/m.test(text)) {
+        issues.push('"Food vs Drink split" sub-heading swallowed into a table cell');
+      }
+
+      return issues;
+    }
+
+    function stripMetricMarkers(s) {
+      // Robust strip: handles missing >>> closer, extra whitespace, multiple blocks
+      return s
+        .replace(/<<<\s*JSON[\s\S]*?JSON\s*>>>/g, '')
+        .replace(/<<<\s*JSON[\s\S]*?(?=\n##|\n\n[A-Z])/g, '')
+        .replace(/<<<\s*JSON\s*\{[^}]*\}\s*JSON\s*>?>?>?/g, '')
+        .trim();
+    }
+
+    // Tracks which analysis mode the current run used, so resetBtn() can
+    // restore the right button label.
+    let currentRunMode = 'full';
+
+    // ----- Run analysis -----
+    // mode: 'full'  — analyze → review → format-ready output (requires reports)
+    //       'basic' — single-pass structural audit only (no reports required)
+    // Size threshold (raw .json bytes) at which we pause and ask the user
+    // to confirm switching to the 1M-context Sonnet model. Picked so
+    // anything that slims down to roughly >= the server's auto-promote
+    // threshold (~500KB slimmed) triggers the modal — even after a
+    // generous 60% reduction from slimming, a 1.3MB raw file still ends
+    // up over 500KB.
+    const LARGE_MENU_BYTES = 1_300_000;
+    // Above this raw size, even the 1M-context model may not fit the
+    // menu after slimming. We still let the user try, but the modal
+    // surfaces the additional warning.
+    const HUGE_MENU_BYTES  = 7_000_000;
+
+    // Promise that's set up when the size-confirmation modal is shown.
+    // Resolves with true (user confirmed) or false (user cancelled).
+    let _sizeModalResolver = null;
+
+    function _showSizeModal(rawBytes) {
+      const modal     = document.getElementById('size-modal');
+      const sizeEl    = document.getElementById('size-modal-size');
+      const warningEl = document.getElementById('size-modal-warning');
+      sizeEl.textContent = formatBytes(rawBytes);
+      warningEl.style.display = rawBytes > HUGE_MENU_BYTES ? 'block' : 'none';
+      modal.style.display = 'flex';
+      return new Promise(resolve => { _sizeModalResolver = resolve; });
+    }
+    function confirmSizeModal() {
+      document.getElementById('size-modal').style.display = 'none';
+      if (_sizeModalResolver) { _sizeModalResolver(true); _sizeModalResolver = null; }
+    }
+    function cancelSizeModal() {
+      document.getElementById('size-modal').style.display = 'none';
+      if (_sizeModalResolver) { _sizeModalResolver(false); _sizeModalResolver = null; }
+    }
+
+    async function runAnalysis(mode) {
+      if (!currentMenu) {
+        setStatus('error', 'Please choose a menu JSON file first.');
+        return;
+      }
+      mode = (mode === 'basic') ? 'basic' : 'full';
+      currentRunMode = mode;
+
+      // In full mode but no reports: refuse and prompt the user.
+      if (mode === 'full' && supportingReports.length === 0) {
+        setStatus('error',
+          'Full Optimize requires supporting business reports. Use Basic Analysis instead, or add reports above.');
+        return;
+      }
+
+      // If the menu is large, ask the user before silently switching
+      // models. forceLongContext drives the server-side selection.
+      let forceLongContext = false;
+      if (currentMenuRawSize >= LARGE_MENU_BYTES) {
+        const ok = await _showSizeModal(currentMenuRawSize);
+        if (!ok) {
+          setStatus('muted', 'Analysis cancelled.');
+          return;
+        }
+        forceLongContext = true;
+      }
+
+      const fullBtn = document.getElementById('analyze-btn');
+      const basicBtn = document.getElementById('basic-analysis-btn');
+      const btn = mode === 'basic' ? basicBtn : fullBtn;
+      fullBtn.disabled = true;
+      basicBtn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span> ' +
+        (mode === 'basic' ? 'Running basic analysis…' : 'Running first-pass audit…');
+
+      document.getElementById('results').style.display = 'block';
+      document.getElementById('analysis-text').innerHTML = '';
+      document.getElementById('metrics-grid').innerHTML = renderSkeletons();
+      document.getElementById('bottom-actions').style.display = 'none';
+      document.getElementById('notion-result').style.display = 'none';
+      document.getElementById('notion-result').innerHTML = '';
+      document.getElementById('review-banner').style.display = 'none';
+      lastAnalysisText = ''; lastAnalysisHtml = ''; lastMetrics = null;
+
+      const location = (document.getElementById('location-input').value || '').trim();
+      const useExtendedThinking = document.getElementById('enable-thinking').checked;
+      const useSonnet = document.getElementById('use-sonnet')?.checked === true;
+      const useTestPrompt = document.getElementById('use-test-prompt')?.checked === true;
+
+      try {
+        const slimmedMenu = (window._slimMenu && currentMenu) ? window._slimMenu(currentMenu) : currentMenu;
+        const ok = await streamAudit('/api/analyze', {
+          menu: slimmedMenu,
+          location: location || undefined,
+          supportingReports: supportingReports.map(r => ({ name: r.name, content: r.content })),
+          useExtendedThinking,
+          useSonnet,
+          useTestPrompt,
+          forceLongContext,
+          mode,
+        });
+        if (!ok) { resetBtn(); return; }
+        if (ok === 'partial') {
+          document.getElementById('bottom-actions').style.display = 'flex';
+          resetBtn();
+          return;
+        }
+
+        // Test prompt mode: skip review/validator, fire action plan second pass.
+        if (useTestPrompt) {
+          btn.innerHTML = '<span class="spinner"></span> Building action plan…';
+          setStatus('running', 'Generating action plan summary…');
+
+          const apPrepRes = await fetch('/api/format-action-plan?prepare=true', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ auditText: lastAnalysisText, useSonnet }),
+          });
+          let actionPlanOk = false;
+          try {
+            if (apPrepRes.ok) {
+              const { payload: apPayload, anthropicHeaders: apHeaders } = await apPrepRes.json();
+              const apRes = await fetch('https://api.anthropic.com/v1/messages', {
+                method: 'POST',
+                headers: { ...apHeaders, 'anthropic-dangerous-direct-browser-access': 'true' },
+                body: JSON.stringify(apPayload),
+              });
+              if (apRes.ok) {
+                const apReader = apRes.body.getReader();
+                const apDecoder = new TextDecoder();
+                let apBuffer = '';
+                while (true) {
+                  const { done, value } = await apReader.read();
+                  if (done) { apBuffer += apDecoder.decode(); }
+                  else { apBuffer += apDecoder.decode(value, { stream: true }); }
+                  let nl;
+                  while ((nl = apBuffer.indexOf('\n')) !== -1) {
+                    const line = apBuffer.slice(0, nl);
+                    apBuffer = apBuffer.slice(nl + 1);
+                    if (!line.startsWith('data: ')) continue;
+                    const data = line.slice(6);
+                    if (data === '[DONE]') continue;
+                    try {
+                      const obj = JSON.parse(data);
+                      if (obj.type === 'message_delta' && obj.delta?.stop_reason) {
+                        console.log(`%c[action-plan stream] stop_reason=${obj.delta.stop_reason} output_tokens=${obj.usage?.output_tokens ?? '?'}`, 'color:orange;font-weight:bold');
+                      }
+                      if (obj.type === 'content_block_delta' && obj.delta?.text) {
+                        lastAnalysisText += obj.delta.text;
+                        lastAnalysisHtml = marked.parse(lastAnalysisText);
+                        document.getElementById('analysis-text').innerHTML = lastAnalysisHtml;
+                      }
+                    } catch (_) {}
+                  }
+                  if (done) break;
+                }
+                actionPlanOk = true;
+              }
+            }
+          } catch (apErr) {
+            console.warn('[action-plan] second pass failed:', apErr);
+          }
+          document.getElementById('bottom-actions').style.display = 'flex';
+          setStatus(actionPlanOk ? 'ok' : 'warn',
+            actionPlanOk
+              ? 'Audit + action plan complete.'
+              : 'Audit complete — action plan failed (partial). Buttons enabled for export.');
+          resetBtn();
+          return;
+        }
+
+        // Basic mode is single-pass by design.
+        if (mode === 'basic') {
+          document.getElementById('bottom-actions').style.display = 'flex';
+          setStatus('ok', 'Basic analysis complete. Add business reports and re-run Full Optimize for the data-backed audit.');
+          resetBtn();
+          return;
+        }
+
+        // Full mode: optionally chain into the confirmatory review pass.
+        const enableReview = document.getElementById('enable-review').checked;
+        if (!enableReview) {
+          document.getElementById('bottom-actions').style.display = 'flex';
+          setStatus('ok', 'Audit complete (confirmatory check skipped).');
+          resetBtn();
+          return;
+        }
+
+        btn.innerHTML = '<span class="spinner"></span> Running confirmatory check…';
+        const banner = document.getElementById('review-banner');
+        const bannerText = document.getElementById('review-status-text');
+        banner.style.display = 'flex';
+        banner.classList.remove('done');
+        bannerText.textContent = 'Re-producing the audit with the first pass as reference…';
+
+        const firstPassText = lastAnalysisText;
+
+        const reviewed = await streamAudit('/api/review', {
+          menu: slimmedMenu,
+          location: location || undefined,
+          supportingReports: supportingReports.map(r => ({ name: r.name, content: r.content })),
+          firstPassAudit: firstPassText,
+          useExtendedThinking,
+          useSonnet,
+          forceLongContext,
+          mode,
+        });
+
+        if (reviewed) {
+          banner.classList.add('done');
+          bannerText.textContent = 'Confirmatory check complete · ready to download.';
+          document.getElementById('bottom-actions').style.display = 'flex';
+          setStatus('ok', 'Audit complete.');
+        }
+      } catch (e) {
+        setStatus('error', 'Network error: ' + e.message);
+      }
+
+      resetBtn();
+    }
+
+    // Checkpoint markers that drive the analysis-progress checklist.
+    // The pattern is matched against the accumulated audit text; the first
+    // time it matches, the corresponding checklist item appears with a
+    // green tick. The first item ("Initiating Analysis") fires on stream
+    // start; the last ("Report Prepared") fires on stream end.
+    const ANALYSIS_CHECKPOINTS = [
+      { label: 'Initiating Analysis',         test: () => true },
+      { label: 'Reviewing Menu Structure',    test: t => /menu structure analysis|top-level menu|## menu structure/i.test(t) },
+      { label: 'Analysing Category Coverage', test: t => /coverage analysis|per-category|image coverage by category/i.test(t) },
+      { label: 'Reviewing Revenue & Upsells', test: t => /revenue optimization|upsells present|upsell coverage/i.test(t) },
+      { label: 'Detecting Misclassifications',test: t => /misclassification detection|items in the wrong category/i.test(t) },
+      { label: 'Compiling Recommendations',   test: t => /final strategic recommendations|prioritised action plan|high-impact quick wins/i.test(t) },
+    ];
+
+    function _resetAnalysisProgress() {
+      const checklist = document.getElementById('analysis-checklist');
+      const complete = document.getElementById('analysis-complete');
+      const fill = document.getElementById('analysis-progress-fill');
+      const pct = document.getElementById('analysis-progress-pct');
+      const lcBanner = document.getElementById('long-context-banner');
+      checklist.innerHTML = '';
+      complete.classList.remove('shown');
+      complete.style.display = 'none';
+      fill.style.width = '0%';
+      pct.textContent = '0%';
+      if (lcBanner) lcBanner.style.display = 'none';
+      document.getElementById('analysis-progress').style.display = 'block';
+    }
+
+    function _showLongContextBanner(numChunks) {
+      const el = document.getElementById('long-context-banner');
+      const text = document.getElementById('long-context-banner-text');
+      if (!el) return;
+      if (text && numChunks > 1) {
+        text.innerHTML =
+          '<strong>Very large menu — split into ' + numChunks + ' parts.</strong> ' +
+          'Each part is analysed by <strong>Claude Sonnet (1M context)</strong> in sequence, then concatenated. ' +
+          'Totals and recommendations are scoped to each part — the output is labelled <em>"Part X of ' +
+          numChunks + '"</em> at each section.';
+      } else if (text) {
+        text.innerHTML =
+          '<strong>Large menu detected.</strong> ' +
+          'Auto-switched to <strong>Claude Sonnet (1M context)</strong> for this run. ' +
+          'Output style and cost may differ slightly from the default Opus model.';
+      }
+      el.style.display = 'flex';
+    }
+
+    function _markCheckpoint(label) {
+      const checklist = document.getElementById('analysis-checklist');
+      const li = document.createElement('li');
+      li.innerHTML = '<span class="tick">✓</span>' + label;
+      checklist.appendChild(li);
+      // Force a reflow so the transition fires
+      // eslint-disable-next-line no-unused-expressions
+      li.offsetHeight;
+      li.classList.add('shown');
+    }
+
+    function _setAnalysisProgressBar(pct) {
+      const fill = document.getElementById('analysis-progress-fill');
+      const lbl = document.getElementById('analysis-progress-pct');
+      const clamped = Math.max(0, Math.min(100, pct));
+      fill.style.width = clamped + '%';
+      lbl.textContent = Math.round(clamped) + '%';
+    }
+
+    function _showAnalysisComplete() {
+      const el = document.getElementById('analysis-complete');
+      el.style.display = 'block';
+      // small delay so the last checklist item is visible first
+      setTimeout(() => el.classList.add('shown'), 200);
+    }
+
+    async function streamAudit(endpoint, body) {
+      // Show + reset the new progress UI. The streaming markdown panel
+      // stays in the DOM but hidden (we may re-enable it later).
+      _resetAnalysisProgress();
+
+      // Target char-count for the progress bar. We count both extended-
+      // thinking chunks AND text output, so the target is set above
+      // text-only audit length to keep the bar from flat-lining at 100%
+      // before the stream ends.
+      const PROGRESS_TARGET_CHARS = 35000;
+      const PROGRESS_CAP_PCT = 96;
+      // Heartbeat ceiling: how far the bar may creep up while waiting
+      // for the first stream chunk (Anthropic can take 20–40s to start
+      // streaming when extended thinking is enabled).
+      const HEARTBEAT_MAX_PCT = 10;
+
+      const checkpointFired = new Array(ANALYSIS_CHECKPOINTS.length).fill(false);
+      const maybeFireCheckpoints = () => {
+        for (let i = 0; i < ANALYSIS_CHECKPOINTS.length; i++) {
+          if (checkpointFired[i]) continue;
+          if (ANALYSIS_CHECKPOINTS[i].test(lastAnalysisText)) {
+            checkpointFired[i] = true;
+            _markCheckpoint(ANALYSIS_CHECKPOINTS[i].label);
+          }
+        }
+      };
+
+      // Fire the first checkpoint immediately so the user sees ✓
+      // Initiating Analysis the moment they click — before Anthropic has
+      // even started thinking.
+      checkpointFired[0] = true;
+      _markCheckpoint(ANALYSIS_CHECKPOINTS[0].label);
+
+      // Heartbeat — bumps the bar slowly while we wait for the first
+      // stream chunk. Cleared the moment real data starts arriving.
+      let lastBarPct = 1.5;
+      _setAnalysisProgressBar(lastBarPct);
+      const heartbeatTick = setInterval(() => {
+        lastBarPct = Math.min(HEARTBEAT_MAX_PCT, lastBarPct + 0.5);
+        _setAnalysisProgressBar(lastBarPct);
+      }, 800);
+
+      const cleanupHeartbeat = () => {
+        if (heartbeatTick) clearInterval(heartbeatTick);
+      };
+
+      // ── Browser-direct Anthropic streaming ──────────────────────────────
+      // Call endpoint?prepare=true first (fast, < 1s, no Vercel timeout risk)
+      // to get the Anthropic payload + credentials, then call Anthropic
+      // directly from the browser. This completely bypasses Vercel's function
+      // timeout for the slow streaming portion.
+      let reader;
+      try {
+        const prepRes = await fetch(endpoint + '?prepare=true', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        if (!prepRes.ok) {
+          cleanupHeartbeat();
+          const err = await prepRes.json().catch(() => ({}));
+          setStatus('error', 'Server error ' + prepRes.status + ': ' + (err?.error || prepRes.statusText));
+          return false;
+        }
+        const prepared = await prepRes.json();
+        const { anthropicHeaders, meta } = prepared;
+
+        // Surface long-context / chunked banner (same UX as before).
+        if (meta?.longContext) {
+          _showLongContextBanner(meta.numChunks || 1);
+        }
+
+        const directHeaders = {
+          ...anthropicHeaders,
+          'anthropic-dangerous-direct-browser-access': 'true',
+        };
+
+        if (prepared.chunks) {
+          // Chunked menu: sequence multiple Anthropic calls in the browser,
+          // combining their SSE streams with separator events between them.
+          const encoder = new TextEncoder();
+          const makeTextEvent = (text) => {
+            const obj = { type: 'content_block_delta', delta: { type: 'text_delta', text } };
+            return encoder.encode('data: ' + JSON.stringify(obj) + '\n\n');
+          };
+          const combinedStream = new ReadableStream({
+            async start(controller) {
+              for (let i = 0; i < prepared.chunks.length; i++) {
+                const sep = i === 0
+                  ? '# Part ' + (i + 1) + ' of ' + prepared.chunks.length + ' — Menu Audit\n\n'
+                  : '\n\n---\n\n# Part ' + (i + 1) + ' of ' + prepared.chunks.length + ' — Menu Audit\n\n';
+                controller.enqueue(makeTextEvent(sep));
+                let chunkRes;
+                try {
+                  chunkRes = await fetch('https://api.anthropic.com/v1/messages', {
+                    method: 'POST', headers: directHeaders,
+                    body: JSON.stringify(prepared.chunks[i]),
+                  });
+                } catch (e) {
+                  controller.enqueue(makeTextEvent('\n\n[Part ' + (i + 1) + ' network error: ' + e.message + ']\n\n'));
+                  continue;
+                }
+                if (!chunkRes.ok) {
+                  const errTxt = await chunkRes.text();
+                  controller.enqueue(makeTextEvent('\n\n[Part ' + (i + 1) + ' failed: ' + errTxt.slice(0, 300) + ']\n\n'));
+                  continue;
+                }
+                const chunkReader = chunkRes.body.getReader();
+                while (true) {
+                  const { done, value } = await chunkReader.read();
+                  if (done) break;
+                  controller.enqueue(value);
+                }
+              }
+              controller.close();
+            },
+          });
+          reader = combinedStream.getReader();
+        } else {
+          const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST',
+            headers: directHeaders,
+            body: JSON.stringify(prepared.payload),
+          });
+          if (!anthropicRes.ok) {
+            cleanupHeartbeat();
+            const errTxt = await anthropicRes.text().catch(() => '');
+            setStatus('error', 'Anthropic API error ' + anthropicRes.status + ': ' + errTxt.slice(0, 300));
+            return false;
+          }
+          reader = anthropicRes.body.getReader();
+        }
+      } catch (e) {
+        cleanupHeartbeat();
+        setStatus('error', 'Network error: ' + e.message);
+        return false;
+      }
+      const decoder = new TextDecoder();
+      let fullText = '';
+      let metricsExtracted = !!lastMetrics;
+      let thinkingChars = 0;
+      let firstChunkSeen = false;
+      let buffer = '';
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) {
+            buffer += decoder.decode();
+          } else {
+            buffer += decoder.decode(value, { stream: true });
+          }
+          let newlineIdx;
+          while ((newlineIdx = buffer.indexOf('\n')) !== -1) {
+            const line = buffer.slice(0, newlineIdx);
+            buffer = buffer.slice(newlineIdx + 1);
+            if (!line.startsWith('data: ')) continue;
+            const data = line.slice(6);
+            if (data === '[DONE]') continue;
+            try {
+              const obj = JSON.parse(data);
+              if (obj.type === 'message_delta' && obj.delta?.stop_reason) {
+                console.log(`%c[analyze stream] stop_reason=${obj.delta.stop_reason} output_tokens=${obj.usage?.output_tokens ?? '?'}`, 'color:orange;font-weight:bold');
+              }
+              if (obj.type !== 'content_block_delta') continue;
+              if (!firstChunkSeen) {
+                firstChunkSeen = true;
+                cleanupHeartbeat();
+              }
+              if (obj.delta?.text) {
+                fullText += obj.delta.text;
+                if (!metricsExtracted && fullText.includes('JSON>>>')) {
+                  const match = fullText.match(/<<<\s*JSON\s*([\s\S]*?)\s*JSON\s*>>>/);
+                  if (match) {
+                    try {
+                      lastMetrics = JSON.parse(match[1]);
+                      renderMetrics(lastMetrics);
+                      metricsExtracted = true;
+                    } catch (e) {}
+                  }
+                }
+                lastAnalysisText = stripMetricMarkers(fullText);
+                maybeFireCheckpoints();
+              } else if (obj.delta?.thinking) {
+                // Extended thinking content — keep the bar moving even
+                // before the model emits any actual audit text.
+                thinkingChars += obj.delta.thinking.length;
+              }
+              const total = lastAnalysisText.length + thinkingChars;
+              const dataPct = Math.min(PROGRESS_CAP_PCT, (total / PROGRESS_TARGET_CHARS) * 100);
+              if (dataPct > lastBarPct) {
+                lastBarPct = dataPct;
+                _setAnalysisProgressBar(dataPct);
+              }
+            } catch (e) {}
+          }
+          if (done) break;
+        }
+      } catch (e) {
+        cleanupHeartbeat();
+        // If the stream cut out after we already captured a substantial
+        // chunk of the audit, salvage the partial result instead of
+        // wiping it. Threshold: ≥8k chars of audit text OR metrics were
+        // already extracted (means we got past the early sections).
+        const partialIsUsable = fullText.length >= 8000 || metricsExtracted;
+        if (partialIsUsable) {
+          setStatus('warn', 'Stream cut short near the end — showing partial result. Retry for the full audit.');
+          try {
+            alert(
+              'Heads up — the connection to Anthropic dropped before the audit finished streaming.\n\n' +
+              'A partial result has been kept so you can review what came through, but it is NOT the full audit. ' +
+              'Click "Full Optimize" again to retry for the complete version.'
+            );
+          } catch (_) {}
+          lastAnalysisText = stripMetricMarkers(fullText);
+          lastAnalysisHtml = window.marked ? marked.parse(lastAnalysisText) : escapeHtml(lastAnalysisText);
+          _setAnalysisProgressBar(100);
+          _showAnalysisComplete();
+          return 'partial';
+        }
+        setStatus('error', 'Stream error: ' + e.message);
+        return false;
+      }
+      cleanupHeartbeat();
+
+      // Stream ended — fire any remaining checkpoints, jump to 100%,
+      // fade in the completion message.
+      for (let i = 0; i < ANALYSIS_CHECKPOINTS.length; i++) {
+        if (!checkpointFired[i]) {
+          checkpointFired[i] = true;
+          _markCheckpoint(ANALYSIS_CHECKPOINTS[i].label);
+        }
+      }
+      _setAnalysisProgressBar(100);
+      _showAnalysisComplete();
+
+      // Keep the markdown pre-rendered for any future re-enable of the
+      // streaming output panel — but don't actually display it.
+      lastAnalysisHtml = window.marked ? marked.parse(lastAnalysisText) : escapeHtml(lastAnalysisText);
+      // (analysis-text element stays display:none)
+      return true;
+    }
+
+    function resetBtn() {
+      const fullBtn = document.getElementById('analyze-btn');
+      const basicBtn = document.getElementById('basic-analysis-btn');
+      fullBtn.innerHTML =
+        '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z"/></svg> Full Optimize';
+      basicBtn.innerHTML =
+        '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11H5a2 2 0 0 0-2 2v7h18v-7a2 2 0 0 0-2-2h-4"/><path d="M14 4h-4l-1 5h6z"/></svg> Basic Analysis';
+      basicBtn.disabled = false;
+      // Full Optimize stays disabled when no reports are attached.
+      updateReportsAvailability();
+    }
+
+    function renderSkeletons() {
+      return Array(5).fill(0).map(() =>
+        '<div class="metric"><div class="skeleton" style="width:60%; margin-bottom:14px;"></div><div class="skeleton" style="height:24px; width:40%;"></div></div>'
+      ).join('');
+    }
+
+    const ICONS = {
+      items: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>',
+      categories: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h18M3 12h18M3 17h18"/></svg>',
+      images: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/></svg>',
+      upsells: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m23 6-9.5 9.5-5-5L1 18"/><path d="M17 6h6v6"/></svg>'
+    };
+
+    function renderMetrics(m) {
+      const items = [
+        { label: 'Items',           value: m.items ?? '—',           cls: 'm-cyan',   icon: ICONS.items },
+        { label: 'Categories',      value: m.categories ?? '—',      cls: 'm-purple', icon: ICONS.categories },
+        { label: 'Item images',     value: m.item_images ?? '—',     cls: 'm-mint',   icon: ICONS.images },
+        { label: 'Category images', value: m.category_images ?? '—', cls: 'm-amber',  icon: ICONS.images },
+        { label: 'Upsells',         value: m.upsells ?? '—',         cls: 'm-pink',   icon: ICONS.upsells }
+      ];
+      document.getElementById('metrics-grid').innerHTML = items.map(i =>
+        '<div class="metric ' + i.cls + '"><div class="icon-bubble">' + i.icon + '</div><div class="metric-label">' + i.label + '</div><div class="metric-value">' + i.value + '</div></div>'
+      ).join('');
+    }
+
+    // ----- PDF download via /api/render-pdf (server-side ReportLab) -----
+    function guessRestaurantName(menu) {
+      if (!menu || typeof menu !== 'object') return null;
+      return menu.name || menu.restaurantName || menu.storeName ||
+             menu.restaurant?.name || menu.store?.name || null;
+    }
+
+    function _resolveRestaurantMeta() {
+      const restaurantName =
+        guessRestaurantName(currentMenu) ||
+        (currentFileName || '').replace(/\.json$/i, '').replace(/[_-]+/g, ' ').trim() ||
+        'Menu';
+      const location = (document.getElementById('location-input').value || '').trim();
+      const dateStr = new Date().toLocaleDateString(undefined, {
+        year: 'numeric', month: 'long', day: 'numeric',
+      });
+      return { restaurantName, location, dateStr };
+    }
+
+    function _downloadBlob(blob, filename) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    // Beautify PDF — renders the existing on-screen audit directly. No extra
+    // LLM call. Fast, but no re-formatting of the audit content.
+    async function downloadPDF(style) {
+      style = (style === 'beautify') ? 'beautify' : 'standard';
+      const btn = document.getElementById('beautify-btn');
+      const otherBtn = document.getElementById('create-pdf-btn');
+      const mdBtn = document.getElementById('download-md-btn');
+      const sendBtn = document.getElementById('send-notion-btn');
+      const originalLabel = btn.innerHTML;
+      btn.disabled = true;
+      if (otherBtn) otherBtn.disabled = true;
+      if (mdBtn) mdBtn.disabled = true;
+      if (sendBtn) sendBtn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span> Beautifying…';
+
+      const { restaurantName, location, dateStr } = _resolveRestaurantMeta();
+
+      try {
+        const res = await fetch('/api/render-pdf', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            audit: lastAnalysisText || '',
+            restaurantName,
+            location,
+            dateStr,
+            reportsCount: supportingReports.length,
+            style,
+          }),
+        });
+
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err?.error || (res.status + ' ' + res.statusText));
+        }
+
+        const blob = await res.blob();
+        const stamp = new Date().toISOString().slice(0, 10);
+        const safeName = restaurantName.replace(/[^a-z0-9_-]+/gi, '_');
+        const suffix = style === 'beautify' ? '_Visual' : '';
+        _downloadBlob(blob, safeName + '_Menu_Audit' + suffix + '_' + stamp + '.pdf');
+
+        setStatus('ok', 'Visual PDF downloaded.');
+      } catch (e) {
+        setStatus('error', 'PDF generation failed: ' + e.message);
+      } finally {
+        btn.disabled = false;
+        if (otherBtn) otherBtn.disabled = false;
+        if (mdBtn) mdBtn.disabled = false;
+        if (sendBtn) sendBtn.disabled = false;
+        btn.innerHTML = originalLabel;
+      }
+    }
+
+    // Create PDF — runs the format pass first to produce a client-ready
+    // reformatted version of the audit (deeper sub-sectioning, prose-to-table
+    // conversion, strict GFM formatting), THEN renders that into a visual
+    // PDF. Adds ~20–40s of extra LLM time over Beautify PDF but produces a
+    // far more presentable client deliverable.
+    // ----- Circular progress ring used inside the Create PDF button -------
+    const PROGRESS_RING_CIRC = 56.5487; // 2 * π * 9
+
+    function _renderCreatePdfButton(pct, label) {
+      // Returns the HTML for the Create PDF button while progress is in flight.
+      const pctClamped = Math.max(0, Math.min(100, pct));
+      const offset = PROGRESS_RING_CIRC * (1 - pctClamped / 100);
+      return (
+        '<span class="progress-ring" aria-hidden="true">' +
+          '<svg viewBox="0 0 24 24">' +
+            '<circle class="pr-track" cx="12" cy="12" r="9"/>' +
+            '<circle class="pr-fill" cx="12" cy="12" r="9" style="stroke-dashoffset:' + offset + '"/>' +
+          '</svg>' +
+          '<span class="pr-text">' + Math.round(pctClamped) + '%</span>' +
+        '</span>' +
+        ' ' + label
+      );
+    }
+
+    function _setCreatePdfProgress(btn, pct, label) {
+      btn.innerHTML = _renderCreatePdfButton(pct, label);
+    }
+
+    async function createPDF() {
+      const btn = document.getElementById('create-pdf-btn');
+      const otherBtn = document.getElementById('beautify-btn');
+      const mdBtn = document.getElementById('download-md-btn');
+      const sendBtn = document.getElementById('send-notion-btn');
+      const originalLabel = btn.innerHTML;
+      btn.disabled = true;
+      if (otherBtn) otherBtn.disabled = true;
+      if (mdBtn) mdBtn.disabled = true;
+      if (sendBtn) sendBtn.disabled = true;
+
+      // Rough char-count estimate for progress mapping. The format pass on a
+      // Cave-sized audit produces ~20–30K chars of Markdown. We cap the
+      // format phase at 80% of the bar so the render phase has room to
+      // visibly advance.
+      const FORMAT_TARGET_CHARS = 25000;
+      const FORMAT_PHASE_PCT = 80;
+
+      _setCreatePdfProgress(btn, 0, 'Formatting');
+
+      const { restaurantName, location, dateStr } = _resolveRestaurantMeta();
+      const useExtendedThinking = document.getElementById('enable-thinking').checked;
+      const useSonnet = document.getElementById('use-sonnet')?.checked === true;
+
+      try {
+        // Step 1 — stream the format pass (browser-direct to avoid Vercel timeout).
+        const formatBody = {
+          auditText: lastAnalysisText || '',
+          location: location || undefined,
+          supportingReports: supportingReports.map(r => ({ name: r.name, content: r.content })),
+          useExtendedThinking,
+          useSonnet,
+        };
+        const formatPrepRes = await fetch('/api/format-report?prepare=true', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formatBody),
+        });
+        if (!formatPrepRes.ok) {
+          const err = await formatPrepRes.json().catch(() => ({}));
+          throw new Error(err?.error || (formatPrepRes.status + ' ' + formatPrepRes.statusText));
+        }
+        const { payload: fmtPayload, anthropicHeaders: fmtHeaders } = await formatPrepRes.json();
+        const fmtAnthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: { ...fmtHeaders, 'anthropic-dangerous-direct-browser-access': 'true' },
+          body: JSON.stringify(fmtPayload),
+        });
+        if (!fmtAnthropicRes.ok) {
+          const errTxt = await fmtAnthropicRes.text().catch(() => '');
+          throw new Error('Anthropic API ' + fmtAnthropicRes.status + ': ' + errTxt.slice(0, 300));
+        }
+
+        const reader = fmtAnthropicRes.body.getReader();
+        const decoder = new TextDecoder();
+        let formattedText = '';
+        let lastPctRendered = 0;
+        let buffer = '';
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) {
+            buffer += decoder.decode();
+          } else {
+            buffer += decoder.decode(value, { stream: true });
+          }
+          let newlineIdx;
+          while ((newlineIdx = buffer.indexOf('\n')) !== -1) {
+            const line = buffer.slice(0, newlineIdx);
+            buffer = buffer.slice(newlineIdx + 1);
+            if (!line.startsWith('data: ')) continue;
+            const data = line.slice(6);
+            if (data === '[DONE]') continue;
+            try {
+              const obj = JSON.parse(data);
+              if (obj.type === 'message_delta' && obj.delta?.stop_reason) {
+                console.log(`%c[format-report stream] stop_reason=${obj.delta.stop_reason} output_tokens=${obj.usage?.output_tokens ?? '?'}`, 'color:orange;font-weight:bold');
+              }
+              if (obj.type === 'content_block_delta' && obj.delta?.text) {
+                formattedText += obj.delta.text;
+              }
+            } catch (_) {}
+          }
+          // Update progress no more often than every 1%-of-bar to avoid layout thrash.
+          const formatPct = Math.min(
+            FORMAT_PHASE_PCT,
+            Math.round((formattedText.length / FORMAT_TARGET_CHARS) * FORMAT_PHASE_PCT),
+          );
+          if (formatPct > lastPctRendered) {
+            lastPctRendered = formatPct;
+            _setCreatePdfProgress(btn, formatPct, 'Formatting');
+          }
+          if (done) break;
+        }
+
+        if (!formattedText.trim()) {
+          throw new Error('Format pass returned empty output');
+        }
+
+        // Format phase complete.
+        _setCreatePdfProgress(btn, FORMAT_PHASE_PCT, 'Rendering');
+
+        // Step 2 — render the formatted text as a beautified PDF.
+        // Show an intermediate tick so the bar visibly moves while the
+        // (synchronous-from-our-side) render request is in flight.
+        const renderProgressTimer = setInterval(() => {
+          const fakePct = Math.min(98, lastPctRendered + 2);
+          lastPctRendered = fakePct;
+          _setCreatePdfProgress(btn, fakePct, 'Rendering');
+        }, 600);
+
+        let renderRes;
+        try {
+          renderRes = await fetch('/api/render-pdf', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              audit: formattedText,
+              restaurantName,
+              location,
+              dateStr,
+              reportsCount: supportingReports.length,
+              style: 'beautify',
+            }),
+          });
+        } finally {
+          clearInterval(renderProgressTimer);
+        }
+
+        if (!renderRes.ok) {
+          const err = await renderRes.json().catch(() => ({}));
+          throw new Error(err?.error || (renderRes.status + ' ' + renderRes.statusText));
+        }
+
+        _setCreatePdfProgress(btn, 100, 'Done');
+
+        const blob = await renderRes.blob();
+        const stamp = new Date().toISOString().slice(0, 10);
+        const safeName = restaurantName.replace(/[^a-z0-9_-]+/gi, '_');
+        _downloadBlob(blob, safeName + '_Menu_Audit_Client_Report_' + stamp + '.pdf');
+
+        setStatus('ok', 'Client report PDF created.');
+      } catch (e) {
+        setStatus('error', 'Create PDF failed: ' + e.message);
+      } finally {
+        btn.disabled = false;
+        if (otherBtn) otherBtn.disabled = false;
+        if (mdBtn) mdBtn.disabled = false;
+        if (sendBtn) sendBtn.disabled = false;
+        // Brief pause so the user sees the 100% completion before the button
+        // reverts to its idle state.
+        setTimeout(() => { btn.innerHTML = originalLabel; }, 400);
+      }
+    }
+
+    // Sanitise the format-pass markdown for clean Notion paste / import:
+    //  - strip stray HTML tags the model might have leaked
+    //  - replace Unicode `═══` fences (sometimes echoed from the prompt) with
+    //    a Markdown `---` horizontal rule
+    //  - collapse 3+ blank lines down to 2
+    //  - ensure a single trailing newline
+    function _sanitizeForNotion(md) {
+      let s = String(md || '');
+      s = s.replace(/<\/?[a-zA-Z][^>]*>/g, '');
+      s = s.replace(/^[═]{3,}\s*$/gm, '---');
+      s = s.replace(/\n{3,}/g, '\n\n');
+      if (!s.endsWith('\n')) s += '\n';
+      return s;
+    }
+
+    // Download for Notion — runs the Notion-tuned format pass at
+    // /api/format-notion (strict GFM, no HTML, emoji-prefixed headings,
+    // blockquote callouts), sanitises the output and saves as a .md file
+    // ready to paste or import into Notion. No PDF render step.
+    async function downloadMarkdown() {
+      const btn = document.getElementById('download-md-btn');
+      const beautifyBtn = document.getElementById('beautify-btn');
+      const createBtn = document.getElementById('create-pdf-btn');
+      const sendBtn = document.getElementById('send-notion-btn');
+      const originalLabel = btn.innerHTML;
+      btn.disabled = true;
+      if (beautifyBtn) beautifyBtn.disabled = true;
+      if (createBtn) createBtn.disabled = true;
+      if (sendBtn) sendBtn.disabled = true;
+
+      const FORMAT_TARGET_CHARS = 25000;
+      _setCreatePdfProgress(btn, 0, 'Formatting');
+
+      const { restaurantName, location } = _resolveRestaurantMeta();
+      const useExtendedThinking = document.getElementById('enable-thinking').checked;
+      const useSonnet = document.getElementById('use-sonnet')?.checked === true;
+
+      try {
+        // Browser-direct to avoid Vercel timeout.
+        const notionBody = {
+          auditText: lastAnalysisText || '',
+          location: location || undefined,
+          supportingReports: supportingReports.map(r => ({ name: r.name, content: r.content })),
+          useExtendedThinking,
+          useSonnet,
+        };
+        const notionPrepRes = await fetch('/api/format-notion?prepare=true', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(notionBody),
+        });
+        if (!notionPrepRes.ok) {
+          const err = await notionPrepRes.json().catch(() => ({}));
+          throw new Error(err?.error || (notionPrepRes.status + ' ' + notionPrepRes.statusText));
+        }
+        const { payload: notionPayload, anthropicHeaders: notionHeaders } = await notionPrepRes.json();
+        const notionAnthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: { ...notionHeaders, 'anthropic-dangerous-direct-browser-access': 'true' },
+          body: JSON.stringify(notionPayload),
+        });
+        if (!notionAnthropicRes.ok) {
+          const errTxt = await notionAnthropicRes.text().catch(() => '');
+          throw new Error('Anthropic API ' + notionAnthropicRes.status + ': ' + errTxt.slice(0, 300));
+        }
+
+        const reader = notionAnthropicRes.body.getReader();
+        const decoder = new TextDecoder();
+        let formattedText = '';
+        let lastPctRendered = 0;
+        let buffer = '';
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) {
+            buffer += decoder.decode();
+          } else {
+            buffer += decoder.decode(value, { stream: true });
+          }
+          let newlineIdx;
+          while ((newlineIdx = buffer.indexOf('\n')) !== -1) {
+            const line = buffer.slice(0, newlineIdx);
+            buffer = buffer.slice(newlineIdx + 1);
+            if (!line.startsWith('data: ')) continue;
+            const data = line.slice(6);
+            if (data === '[DONE]') continue;
+            try {
+              const obj = JSON.parse(data);
+              if (obj.type === 'message_delta' && obj.delta?.stop_reason) {
+                console.log(`%c[format-notion stream] stop_reason=${obj.delta.stop_reason} output_tokens=${obj.usage?.output_tokens ?? '?'}`, 'color:orange;font-weight:bold');
+              }
+              if (obj.type === 'content_block_delta' && obj.delta?.text) {
+                formattedText += obj.delta.text;
+              }
+            } catch (_) {}
+          }
+          const pct = Math.min(
+            99,
+            Math.round((formattedText.length / FORMAT_TARGET_CHARS) * 99),
+          );
+          if (pct > lastPctRendered) {
+            lastPctRendered = pct;
+            _setCreatePdfProgress(btn, pct, 'Formatting');
+          }
+          if (done) break;
+        }
+
+        if (!formattedText.trim()) {
+          throw new Error('Format pass returned empty output');
+        }
+
+        _setCreatePdfProgress(btn, 100, 'Done');
+
+        const cleaned = _sanitizeForNotion(formattedText);
+
+        console.group('📄 Download for Notion — content pipeline');
+        console.log('1. Raw audit (lastAnalysisText):  ', lastAnalysisText.length, 'chars');
+        console.log('2. After format-notion (formattedText):', formattedText.length, 'chars',
+          `(${lastAnalysisText.length ? Math.round((formattedText.length / lastAnalysisText.length) * 100) : '?'}% of input)`);
+        console.log('3. After sanitize (cleaned):      ', cleaned.length, 'chars',
+          `(${formattedText.length ? Math.round((cleaned.length / formattedText.length) * 100) : '?'}% of formatted)`);
+        console.groupEnd();
+
+        const stamp = new Date().toISOString().slice(0, 10);
+        const safeName = restaurantName.replace(/[^a-z0-9_-]+/gi, '_');
+        const blob = new Blob([cleaned], { type: 'text/markdown;charset=utf-8' });
+        _downloadBlob(blob, safeName + '_Menu_Audit_' + stamp + '.md');
+
+        setStatus('ok', 'Notion Markdown downloaded.');
+      } catch (e) {
+        setStatus('error', 'Markdown download failed: ' + e.message);
+      } finally {
+        btn.disabled = false;
+        if (beautifyBtn) beautifyBtn.disabled = false;
+        if (createBtn) createBtn.disabled = false;
+        if (sendBtn) sendBtn.disabled = false;
+        setTimeout(() => { btn.innerHTML = originalLabel; }, 400);
+      }
+    }
+
+    // Animate the "Formatting in Notion.." modal for `durationMs` and call
+    // `onDone()` when the bar reaches 100%. Notion's API is actually
+    // synchronous (the page is fully created when /api/send-to-notion
+    // returns), so this is a cosmetic delay between page creation and
+    // surfacing the link — gives the user the sense that careful work is
+    // happening on the Notion side. Block conversion, colours, and zebra
+    // rows have already been applied at this point.
+    function _showFormatInNotionModal(durationMs, onDone) {
+      const modal = document.getElementById('format-modal');
+      const fill = document.getElementById('format-modal-fill');
+      const pct = document.getElementById('format-modal-pct');
+      modal.style.display = 'flex';
+      fill.style.transition = 'none';
+      fill.style.width = '0%';
+      pct.textContent = '0%';
+      fill.offsetHeight; // force reflow so animation starts from 0
+      fill.style.transition = 'width 1s linear';
+
+      const start = Date.now();
+      let done = false;
+
+      const finish = () => {
+        if (done) return;
+        done = true;
+        clearInterval(tick);
+        document.removeEventListener('visibilitychange', onVisibility);
+        fill.style.width = '100%';
+        pct.textContent = '100%';
+        setTimeout(() => {
+          modal.style.display = 'none';
+          onDone();
+        }, 300);
+      };
+
+      const tick = setInterval(() => {
+        const elapsed = Date.now() - start;
+        const p = Math.min(100, (elapsed / durationMs) * 100);
+        fill.style.width = p + '%';
+        pct.textContent = Math.round(p) + '%';
+        if (elapsed >= durationMs) finish();
+      }, 1000);
+
+      // When the tab becomes visible again after being frozen/backgrounded,
+      // check real elapsed time and complete immediately if 60s has passed.
+      const onVisibility = () => {
+        if (document.visibilityState === 'visible') {
+          const elapsed = Date.now() - start;
+          if (elapsed >= durationMs) finish();
+        }
+      };
+      document.addEventListener('visibilitychange', onVisibility);
+    }
+
+    // Send to Notion — posts the raw audit markdown straight to
+    // /api/send-to-notion (no LLM format pass on the client; the markdown→
+    // Notion-blocks converter on the server handles heading colours, zebra
+    // rows, etc.). After the API returns the URL we show a 60-second
+    // "Formatting in Notion.." popup before revealing the link, so the
+    // user has a sense of the work being applied.
+    async function sendToNotion() {
+      const btn = document.getElementById('send-notion-btn');
+      const beautifyBtn = document.getElementById('beautify-btn');
+      const createBtn = document.getElementById('create-pdf-btn');
+      const mdBtn = document.getElementById('download-md-btn');
+      const originalLabel = btn.innerHTML;
+      btn.disabled = true;
+      if (beautifyBtn) beautifyBtn.disabled = true;
+      if (createBtn) createBtn.disabled = true;
+      if (mdBtn) mdBtn.disabled = true;
+
+      _setCreatePdfProgress(btn, 25, 'Sending');
+
+      const { restaurantName, dateStr } = _resolveRestaurantMeta();
+      const auditMd = _sanitizeForNotion(lastAnalysisText || '');
+
+      console.group('📨 Send to Notion — content pipeline');
+      console.log('1. Raw audit (lastAnalysisText):', lastAnalysisText.length, 'chars');
+      console.log('2. After sanitize (auditMd):    ', auditMd.length, 'chars',
+        `(${lastAnalysisText.length ? Math.round((auditMd.length / lastAnalysisText.length) * 100) : '?'}% of input)`);
+      console.groupEnd();
+
+      if (!auditMd.trim()) {
+        setStatus('error', 'No audit content to send. Run an analysis first.');
+        btn.disabled = false;
+        if (beautifyBtn) beautifyBtn.disabled = false;
+        if (createBtn) createBtn.disabled = false;
+        if (mdBtn) mdBtn.disabled = false;
+        btn.innerHTML = originalLabel;
+        return;
+      }
+
+      // Tick the progress ring while waiting for the backend call.
+      let lastPct = 25;
+      const tick = setInterval(() => {
+        lastPct = Math.min(95, lastPct + 4);
+        _setCreatePdfProgress(btn, lastPct, 'Sending');
+      }, 500);
+
+      const reEnable = () => {
+        btn.disabled = false;
+        if (beautifyBtn) beautifyBtn.disabled = false;
+        if (createBtn) createBtn.disabled = false;
+        if (mdBtn) mdBtn.disabled = false;
+        btn.innerHTML = originalLabel;
+      };
+
+      try {
+        // 120-second hard timeout — Notion API should never need more than
+        // this for any realistic audit block count.
+        const abort = new AbortController();
+        const timeout = setTimeout(() => abort.abort(), 120000);
+
+        let sendRes;
+        try {
+          sendRes = await fetch('/api/send-to-notion', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ auditMd, restaurantName, dateStr }),
+            signal: abort.signal,
+          });
+        } finally {
+          clearTimeout(timeout);
+          clearInterval(tick);
+        }
+
+        const result = await sendRes.json().catch(() => ({}));
+        if (result?.diagnostics) {
+          console.group('📨 Notion server diagnostics');
+          console.log('Markdown received by server:  ', result.diagnostics.auditMdChars, 'chars');
+          console.log('Notion blocks generated:      ', result.diagnostics.blocksGenerated);
+          console.log('Notion blocks sent:           ', result.diagnostics.blocksSent);
+          console.log('Tables generated:             ', result.diagnostics.tablesGenerated);
+          console.log('Largest table row count:      ', result.diagnostics.maxTableRows,
+            result.diagnostics.maxTableRows > 100 ? '⚠️ exceeds Notion 100-children limit' : '');
+          console.groupEnd();
+        }
+
+        if (!sendRes.ok && sendRes.status !== 207) {
+          setStatus('error', 'Send to Notion failed: ' + (result?.error || (sendRes.status + ' ' + sendRes.statusText)));
+          reEnable();
+          return;
+        }
+
+        _setCreatePdfProgress(btn, 100, 'Done');
+
+        const pageUrl = result?.url;
+        const partial = sendRes.status === 207 ? ' (partial — some blocks failed to append)' : '';
+
+        // Show the 60-second "Formatting in Notion" modal, then reveal link.
+        const revealLink = () => {
+          const resultEl = document.getElementById('notion-result');
+          if (pageUrl && resultEl) {
+            resultEl.innerHTML = `<a href="${pageUrl}" target="_blank" rel="noopener">` +
+              `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>` +
+              `Open in Notion ↗</a>`;
+            resultEl.style.display = 'flex';
+          } else if (resultEl) {
+            resultEl.style.display = 'none';
+            resultEl.innerHTML = '';
+          }
+          setStatus('ok', `Notion page ready${partial}.`);
+          reEnable();
+        };
+        _showFormatInNotionModal(60000, revealLink);
+
+      } catch (e) {
+        clearInterval(tick);
+        const msg = e?.name === 'AbortError'
+          ? 'Send to Notion timed out after 120s. The Notion API may be slow — try again.'
+          : 'Send to Notion failed: ' + e.message;
+        setStatus('error', msg);
+        reEnable();
+      }
+    }
+
+  </script>
+</body>
+</html>
