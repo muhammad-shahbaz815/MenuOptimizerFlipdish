@@ -1,22 +1,10 @@
 import { buildFormatNotionPrompt } from '@/lib/prompts/format-notion-prompt';
 import { buildSystemPrompt } from '@/lib/prompts/system-prompt';
-import { MODEL, pickModel } from '@/lib/anthropic-config';
+import { pickModel } from '@/lib/anthropic-config';
 
 export const runtime = 'edge';
 
-// Streams a Notion-tuned reformatting of an existing audit. Used by the
-// "Download for Notion" button — same draft-input contract as
-// /api/format-report, different prompt rules (strict GFM, no HTML, emoji-
-// prefixed headings, blockquote callouts, no Unicode box-drawing chars).
-
 export async function POST(req: Request) {
-  if (req.method !== 'POST') {
-    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
-      status: 405,
-      headers: { 'Content-Type': 'application/json' },
-    });
-  }
-
   const apiKey = (process.env.ANTHROPIC_API_KEY || '').trim();
   if (!apiKey) {
     return new Response(
@@ -25,7 +13,7 @@ export async function POST(req: Request) {
     );
   }
 
-  let body;
+  let body: Record<string, unknown>;
   try { body = await req.json(); }
   catch {
     return new Response(JSON.stringify({ error: 'Request body must be JSON' }), {
@@ -48,7 +36,7 @@ export async function POST(req: Request) {
 
   const maxTokens = 64000;
   const useSonnet = body?.useSonnet === true;
-  const payload = {
+  const payload: Record<string, unknown> = {
     model: pickModel(useSonnet),
     max_tokens: maxTokens,
     stream: true,
@@ -59,13 +47,12 @@ export async function POST(req: Request) {
     payload.thinking = { type: 'enabled', budget_tokens: 4000 };
   }
 
-  const anthropicHeaders = {
+  const anthropicHeaders: Record<string, string> = {
     'Content-Type': 'application/json',
     'x-api-key': apiKey,
     'anthropic-version': '2023-06-01',
   };
 
-  // prepare=true: return payload + credentials for browser-direct calling.
   const url = new URL(req.url);
   if (url.searchParams.get('prepare') === 'true') {
     return new Response(JSON.stringify({ payload, anthropicHeaders }), {
