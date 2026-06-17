@@ -1,45 +1,23 @@
 import { slimMenu, chunkMenuByCategories } from '@/lib/prompts/slim-menu';
 import { buildAnalyzePrompt } from '@/lib/prompts/analyze-prompt';
 import { buildBasicAnalysisPrompt } from '@/lib/prompts/basic-analysis-prompt';
-import { buildTestPrompt } from '../lib/prompts/test-prompt.js';
+import { buildTestPrompt } from '@/lib/prompts/test-prompt';
 import { buildSystemPrompt } from '@/lib/prompts/system-prompt';
-import { MODEL, SONNET_MODEL, LONG_CONTEXT_BETA, pickModelForRun } from '@/lib/anthropic-config';
+import { SONNET_MODEL, LONG_CONTEXT_BETA, pickModelForRun } from '@/lib/anthropic-config';
+
+export const runtime = 'edge';
 
 // Above this slimmed-menu size, the menu won't fit in a single Sonnet 1M
 // call (after subtracting prompt, supporting reports, thinking budget,
 // and output reservation from the 1M context). We split categories
 // across N sequential LLM calls and stream their outputs back as one
 // combined SSE stream with "Part X of N" separators.
-//
-// 2.6MB ≈ 850K input tokens (at ~3 chars/token for JSON), leaving ~150K
-// for prompt + reports + output. Conservative — typical Flipdish menus
-// pack denser than 3 chars/token so this gives real headroom.
 const MAX_JSON_PER_CHUNK = 2_600_000;
 
-export const runtime = 'edge';
-
-// Slimmed-menu size budget. 5MB ≈ ~1.25M input tokens at ~4 chars/token.
-//
-// We pair this with the 1M-context auto-promotion in pickModelForRun:
-// menus over 500KB are silently routed to Sonnet with the 1M-context beta
-// header, which fits up to ~4MB of JSON input. The 5MB cap here gives the
-// upstream API just enough headroom to return a precise "prompt too long"
-// error for menus that genuinely don't fit, instead of us pre-rejecting
-// at a lower bound.
-//
-// If a menu still bounces off Anthropic at 1M context, the realistic next
-// move is targeted slimming (find which fields are still bloating it) or
-// chunked-by-category analysis.
+// Slimmed-menu size budget.
 const MAX_MENU_CHARS = 5_000_000;
 
 export async function POST(req: Request) {
-  if (req.method !== 'POST') {
-    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
-      status: 405,
-      headers: { 'Content-Type': 'application/json' },
-    });
-  }
-
   const apiKey = (process.env.ANTHROPIC_API_KEY || '').trim();
   if (!apiKey) {
     return new Response(
@@ -49,11 +27,11 @@ export async function POST(req: Request) {
   }
 
   // prepare=true: return the Anthropic payload + credentials as JSON so the
-  // browser can call Anthropic directly (no Vercel timeout involvement).
+  // browser can call Anthropic directly (no timeout involvement).
   const url = new URL(req.url);
   const prepareOnly = url.searchParams.get('prepare') === 'true';
 
-  let body;
+  let body: Record<string, unknown>;
   try {
     body = await req.json();
   } catch {
@@ -107,7 +85,7 @@ export async function POST(req: Request) {
     useSonnet,
     forceLongContext,
   });
-  const payload = {
+  const payload: Record<string, unknown> = {
     model: selection.model,
     max_tokens: maxTokens,
     stream: true,
@@ -121,7 +99,7 @@ export async function POST(req: Request) {
     payload.tools = [{ type: 'web_search_20250305', name: 'web_search', max_uses: 5 }];
   }
 
-  const anthropicHeaders = {
+  const anthropicHeaders: Record<string, string> = {
     'Content-Type': 'application/json',
     'x-api-key': apiKey,
     'anthropic-version': '2023-06-01',
@@ -136,7 +114,7 @@ export async function POST(req: Request) {
       const chunkHeaders = { ...anthropicHeaders, 'anthropic-beta': LONG_CONTEXT_BETA };
 
       if (prepareOnly) {
-        const chunkPayloads = chunks.map((chunk, i) => {
+        const chunkPayloads = chunks.map((chunk: unknown, i: number) => {
           const chunkMenuJson = JSON.stringify(chunk, null, 2);
           const basePrompt = buildAnalyzePrompt({ menuJson: chunkMenuJson, location, reports });
           const chunkPrompt =
@@ -145,7 +123,7 @@ export async function POST(req: Request) {
             `categories visible in this part only — do NOT claim totals across the whole menu. The human will ` +
             `combine your output with the other parts.\n\n` +
             basePrompt;
-          const p = {
+          const p: Record<string, unknown> = {
             model: SONNET_MODEL,
             max_tokens: maxTokens,
             stream: true,
@@ -210,21 +188,6 @@ export async function POST(req: Request) {
   });
 }
 
-// Stream a chunked, multi-call audit back to the client as one combined
-// SSE stream. For each chunk:
-//   1. Inject a synthetic content_block_delta event with a "Part X of N"
-//      separator so the rendered audit makes it obvious where each chunk
-//      starts.
-//   2. Build the analyze prompt for this chunk's subset of categories
-//      (the prompt is told this is a partial menu so totals + global
-//      sections are scoped to the visible categories only).
-//   3. Fire the upstream Anthropic call with the 1M-context beta header.
-//   4. Pipe upstream.body straight through to the client.
-//
-// Sequential, not parallel — keeps the streaming experience coherent
-// (user sees Part 1 stream, then Part 2 stream) and avoids Anthropic
-// rate-limit issues. Trade-off: total wall time is N × per-chunk time
-// rather than max() of N parallel calls.
 function streamChunkedAnalysis({
   chunks,
   numChunks,
@@ -235,10 +198,20 @@ function streamChunkedAnalysis({
   enableWebSearch,
   maxTokens,
   modelSelectionMeta,
+}: {
+  chunks: unknown[];
+  numChunks: number;
+  location: string;
+  reports: unknown[];
+  anthropicHeaders: Record<string, string>;
+  useExtendedThinking: boolean;
+  enableWebSearch: boolean;
+  maxTokens: number;
+  modelSelectionMeta: { model: string; longContext: boolean };
 }) {
   const encoder = new TextEncoder();
 
-  function sseTextEvent(text) {
+  function sseTextEvent(text: string) {
     const obj = { type: 'content_block_delta', delta: { type: 'text_delta', text } };
     return encoder.encode(`data: ${JSON.stringify(obj)}\n\n`);
   }
@@ -247,16 +220,11 @@ function streamChunkedAnalysis({
     async start(controller) {
       try {
         for (let i = 0; i < chunks.length; i++) {
-          // Separator marker so the rendered audit cleanly shows where
-          // each chunk starts.
           const sep = i === 0
             ? `# Part ${i + 1} of ${numChunks} — Menu Audit\n\n`
             : `\n\n---\n\n# Part ${i + 1} of ${numChunks} — Menu Audit\n\n`;
           controller.enqueue(sseTextEvent(sep));
 
-          // Chunk-aware prompt. Wraps the standard analyze prompt with a
-          // note explaining this is a partial-menu pass so the model
-          // scopes its analysis correctly.
           const chunkMenuJson = JSON.stringify(chunks[i], null, 2);
           const basePrompt = buildAnalyzePrompt({ menuJson: chunkMenuJson, location, reports });
           const chunkPrompt =
@@ -266,7 +234,7 @@ function streamChunkedAnalysis({
             `combine your output with the other parts.\n\n` +
             basePrompt;
 
-          const payload = {
+          const payload: Record<string, unknown> = {
             model: modelSelectionMeta.model,
             max_tokens: maxTokens,
             stream: true,
@@ -285,11 +253,10 @@ function streamChunkedAnalysis({
           if (!upstream.ok) {
             const errText = await upstream.text();
             controller.enqueue(sseTextEvent(`\n\n[Part ${i + 1} of ${numChunks} failed: ${errText.slice(0, 300)}]\n\n`));
-            continue; // try next chunk
+            continue;
           }
 
-          // Pipe the upstream SSE body straight through to the client.
-          const reader = upstream.body.getReader();
+          const reader = upstream.body!.getReader();
           while (true) {
             const { done, value } = await reader.read();
             if (done) break;
@@ -298,7 +265,7 @@ function streamChunkedAnalysis({
         }
         controller.close();
       } catch (e) {
-        controller.enqueue(sseTextEvent(`\n\n[Chunked analysis aborted: ${String(e?.message || e).slice(0, 300)}]\n\n`));
+        controller.enqueue(sseTextEvent(`\n\n[Chunked analysis aborted: ${String((e as Error)?.message || e).slice(0, 300)}]\n\n`));
         controller.close();
       }
     },

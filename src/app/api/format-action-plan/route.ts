@@ -1,16 +1,10 @@
 import { buildActionPlanPrompt } from '@/lib/prompts/action-plan-prompt';
 import { buildSystemPrompt } from '@/lib/prompts/system-prompt';
-import { MODEL, pickModel } from '@/lib/anthropic-config';
+import { pickModel } from '@/lib/anthropic-config';
 
 export const runtime = 'edge';
 
 export async function POST(req: Request) {
-  if (req.method !== 'POST') {
-    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
-      status: 405, headers: { 'Content-Type': 'application/json' },
-    });
-  }
-
   const apiKey = (process.env.ANTHROPIC_API_KEY || '').trim();
   if (!apiKey) {
     return new Response(JSON.stringify({ error: 'Server is missing ANTHROPIC_API_KEY env var' }), {
@@ -18,7 +12,7 @@ export async function POST(req: Request) {
     });
   }
 
-  let body;
+  let body: Record<string, unknown>;
   try { body = await req.json(); }
   catch {
     return new Response(JSON.stringify({ error: 'Request body must be JSON' }), {
@@ -44,13 +38,12 @@ export async function POST(req: Request) {
     messages: [{ role: 'user', content: prompt }],
   };
 
-  const anthropicHeaders = {
+  const anthropicHeaders: Record<string, string> = {
     'Content-Type': 'application/json',
     'x-api-key': apiKey,
     'anthropic-version': '2023-06-01',
   };
 
-  // prepare=true: return payload + credentials for browser-direct calling.
   const url = new URL(req.url);
   if (url.searchParams.get('prepare') === 'true') {
     return new Response(JSON.stringify({ payload, anthropicHeaders }), {

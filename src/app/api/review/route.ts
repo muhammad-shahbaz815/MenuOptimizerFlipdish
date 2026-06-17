@@ -1,26 +1,13 @@
 import { slimMenu } from '@/lib/prompts/slim-menu';
 import { buildReviewPrompt } from '@/lib/prompts/review-prompt';
 import { buildSystemPrompt } from '@/lib/prompts/system-prompt';
-import { MODEL, pickModelForRun } from '@/lib/anthropic-config';
+import { pickModelForRun } from '@/lib/anthropic-config';
 
 export const runtime = 'edge';
 
-// Confirmatory review pass. Runs after /api/analyze when the user has the
-// "Run confirmatory check" toggle on. Re-produces the audit with the
-// first-pass output supplied as reference, so the model can verify the
-// figures, fill gaps, and tighten language rather than starting blind.
-
-// See api/analyze.js for the rationale on this value. Kept in sync.
 const MAX_MENU_CHARS = 5_000_000;
 
 export async function POST(req: Request) {
-  if (req.method !== 'POST') {
-    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
-      status: 405,
-      headers: { 'Content-Type': 'application/json' },
-    });
-  }
-
   const apiKey = (process.env.ANTHROPIC_API_KEY || '').trim();
   if (!apiKey) {
     return new Response(
@@ -29,7 +16,7 @@ export async function POST(req: Request) {
     );
   }
 
-  let body;
+  let body: Record<string, unknown>;
   try { body = await req.json(); }
   catch {
     return new Response(JSON.stringify({ error: 'Request body must be JSON' }), {
@@ -40,8 +27,7 @@ export async function POST(req: Request) {
   const menu = body?.menu;
   if (!menu) {
     return new Response(JSON.stringify({ error: 'Missing "menu" field in request body' }), {
-      status: 400,
-      headers: { 'Content-Type': 'application/json' },
+      status: 400, headers: { 'Content-Type': 'application/json' },
     });
   }
 
@@ -55,8 +41,6 @@ export async function POST(req: Request) {
   const location = (body?.location || '').toString().trim();
   const reports = Array.isArray(body?.supportingReports) ? body.supportingReports : [];
 
-  // Slim + pretty-print the menu the same way analyze does, so the review
-  // model sees the same data shape it processed in the first pass.
   const slim = slimMenu(menu);
   const menuJson = JSON.stringify(slim, null, 2);
   if (menuJson.length > MAX_MENU_CHARS) {
@@ -74,15 +58,9 @@ export async function POST(req: Request) {
     : (enableWebSearch ? 24000 : 32000);
 
   const useSonnet = body?.useSonnet === true;
-  // Mirror analyze.js: honour the client's forceLongContext flag (from
-  // the size-warning modal) and fall back to size-based auto-promotion.
   const forceLongContext = body?.forceLongContext === true;
-  const selection = pickModelForRun({
-    menuChars: menuJson.length,
-    useSonnet,
-    forceLongContext,
-  });
-  const payload = {
+  const selection = pickModelForRun({ menuChars: menuJson.length, useSonnet, forceLongContext });
+  const payload: Record<string, unknown> = {
     model: selection.model,
     max_tokens: maxTokens,
     stream: true,
@@ -96,7 +74,7 @@ export async function POST(req: Request) {
     payload.tools = [{ type: 'web_search_20250305', name: 'web_search', max_uses: 5 }];
   }
 
-  const anthropicHeaders = {
+  const anthropicHeaders: Record<string, string> = {
     'Content-Type': 'application/json',
     'x-api-key': apiKey,
     'anthropic-version': '2023-06-01',

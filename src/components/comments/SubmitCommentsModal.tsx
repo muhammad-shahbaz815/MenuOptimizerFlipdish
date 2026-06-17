@@ -39,10 +39,10 @@ export const SubmitCommentsModal: React.FC<Props> = ({ open, onClose, menuName, 
 
   if (!open) return null;
 
-  const serviceId = import.meta.env.VITE_EMAILJS_SERVICE_ID || '';
-  const templateId = import.meta.env.VITE_EMAILJS_TEMPLATE_ID || '';
-  const publicKey = import.meta.env.VITE_EMAILJS_PUBLIC_KEY || '';
-  const onboardingEmail = import.meta.env.VITE_ONBOARDING_EMAIL || 'onboarding@flipdish.com';
+  const serviceId = process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID || '';
+  const templateId = process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID || '';
+  const publicKey = process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY || '';
+  const onboardingEmail = process.env.NEXT_PUBLIC_ONBOARDING_EMAIL || 'onboarding@flipdish.com';
 
   const isEmailJSConfigured =
     serviceId !== '' &&
