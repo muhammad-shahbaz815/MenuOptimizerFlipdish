@@ -16,7 +16,7 @@ const root = process.cwd();
 const WORKER_SECRETS = [
   {
     config: path.join(root, 'wrangler.production.jsonc'),
-    secrets: ['NEXTAUTH_SECRET', 'GOOGLE_CLIENT_SECRET'],
+    secrets: ['NEXTAUTH_SECRET', 'GOOGLE_CLIENT_SECRET', 'ANTHROPIC_API_KEY'],
   },
 ];
 
