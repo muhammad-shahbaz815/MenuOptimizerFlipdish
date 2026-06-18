@@ -35,7 +35,7 @@ const remoteArgs = isProd ? ['--remote', '--yes'] : [];
 function readAppliedMigrationNames() {
   const r = spawnSync(
     'npx',
-    ['wrangler', 'd1', 'execute', 'application-name-db', '--config', config, ...remoteArgs, '--json', '--command=SELECT name FROM schema_migrations'],
+    ['wrangler', 'd1', 'execute', 'menu-optimizer-flipdish-db', '--config', config, ...remoteArgs, '--json', '--command=SELECT name FROM schema_migrations'],
     { encoding: 'utf8', cwd: root, env: process.env },
   );
   if (r.status !== 0) {
@@ -55,7 +55,7 @@ function readAppliedMigrationNames() {
 }
 
 function _runWrangler(args) {
-  const r = spawnSync('npx', ['wrangler', 'd1', 'execute', 'application-name-db', ...args, '--config', config], {
+  const r = spawnSync('npx', ['wrangler', 'd1', 'execute', 'menu-optimizer-flipdish-db', ...args, '--config', config], {
     stdio: 'inherit',
     cwd: root,
     env: process.env,
@@ -78,7 +78,7 @@ for (const file of files) {
   console.log(`Running migration: ${file}`);
 
   // Use --command=<sql> so SQL starting with `--` is not parsed as wrangler flags.
-  const r = spawnSync('npx', ['wrangler', 'd1', 'execute', 'application-name-db', '--config', config, ...remoteArgs, `--command=${sql}`], {
+  const r = spawnSync('npx', ['wrangler', 'd1', 'execute', 'menu-optimizer-flipdish-db', '--config', config, ...remoteArgs, `--command=${sql}`], {
     stdio: 'inherit',
     cwd: root,
     env: process.env,
@@ -93,7 +93,7 @@ for (const file of files) {
   const insertMigration = `INSERT OR IGNORE INTO schema_migrations (name) VALUES ('${safeName}');`;
   const r2 = spawnSync(
     'npx',
-    ['wrangler', 'd1', 'execute', 'application-name-db', '--config', config, ...remoteArgs, `--command=${insertMigration}`],
+    ['wrangler', 'd1', 'execute', 'menu-optimizer-flipdish-db', '--config', config, ...remoteArgs, `--command=${insertMigration}`],
     {
       stdio: 'inherit',
       cwd: root,

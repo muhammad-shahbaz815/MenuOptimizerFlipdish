@@ -1,6 +1,6 @@
 # Deploy to Cloudflare Workers (environment: production — configure there, not only repo-level).
 # GitHub production environment secrets/variables are owned by Platform Enablement Team (#ask-platform-enablement-team).
-# Environment secrets: CLOUDFLARE_API_TOKEN, GOOGLE_CLIENT_SECRET, NEXTAUTH_SECRET
+# Environment secrets: CLOUDFLARE_API_TOKEN, GOOGLE_CLIENT_SECRET, NEXTAUTH_SECRET, ANTHROPIC_API_KEY
 # Environment variables: CLOUDFLARE_ACCOUNT_ID, GOOGLE_CLIENT_ID, NEXTAUTH_URL (public URL, no trailing slash)
 
 name: Deploy to Cloudflare
@@ -24,6 +24,7 @@ jobs:
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       GOOGLE_CLIENT_ID: ${{ vars.GOOGLE_CLIENT_ID }}
       GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
       NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
@@ -63,7 +64,7 @@ jobs:
       - name: GitHub Release and Notification
         uses: flipdishbytes/github-release-slack-notification@v1.1
         with:
-          projectName: Cloudflare App Template
+          projectName: Menu Optimizer Flipdish
           sendSlackNotification: false
           slackChannel: production_releases
         continue-on-error: true
